@@ -8,6 +8,7 @@ DB_PATH = Path(__file__).parent.parent / "bills.db"
 
 FREQUENCIES = ("weekly", "monthly", "quarterly", "annual", "one-off")
 CATEGORIES = ("james", "chris", "sophia", "daniel", "caroline")
+BILL_TYPES = ("utilities", "streaming", "health", "wellness", "insurance", "education", "software", "finance", "other")
 
 
 def get_connection() -> sqlite3.Connection:
@@ -40,6 +41,7 @@ def init_db() -> None:
                 category    TEXT    NOT NULL DEFAULT 'james',
                 active      INTEGER NOT NULL DEFAULT 1,
                 auto_pay    INTEGER NOT NULL DEFAULT 0,
+                bill_type   TEXT    NOT NULL DEFAULT 'other',
                 notes       TEXT,
                 url         TEXT,
                 created_at  TEXT    NOT NULL DEFAULT (date('now'))
@@ -55,6 +57,7 @@ def init_db() -> None:
         for migration in [
             "ALTER TABLE bills ADD COLUMN url TEXT",
             "ALTER TABLE bills ADD COLUMN auto_pay INTEGER NOT NULL DEFAULT 0",
+            "ALTER TABLE bills ADD COLUMN bill_type TEXT NOT NULL DEFAULT 'other'",
         ]:
             try:
                 conn.execute(migration)
@@ -170,6 +173,30 @@ def overdue_bill_ids(conn: sqlite3.Connection, paid_this_month: set[int]) -> set
             if 0 < days_since < 7:
                 overdue.add(row["id"])
     return overdue
+
+
+def type_monthly_totals(conn: sqlite3.Connection) -> dict[str, float]:
+    """Returns {bill_type: monthly_equivalent} for all active bills."""
+    rows = conn.execute(
+        "SELECT amount, frequency, bill_type FROM bills WHERE active = 1"
+    ).fetchall()
+    totals: dict[str, float] = {}
+    for row in rows:
+        freq = row["frequency"]
+        amt = row["amount"]
+        if freq == "weekly":
+            monthly = amt * 52 / 12
+        elif freq == "monthly":
+            monthly = amt
+        elif freq == "quarterly":
+            monthly = amt / 3
+        elif freq == "annual":
+            monthly = amt / 12
+        else:
+            continue
+        t = row["bill_type"]
+        totals[t] = round(totals.get(t, 0.0) + monthly, 2)
+    return totals
 
 
 def spending_trends(conn: sqlite3.Connection) -> list[tuple[str, float]]:

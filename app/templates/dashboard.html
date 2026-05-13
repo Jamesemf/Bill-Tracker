@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta http-equiv="refresh" content="60" id="auto-refresh">
-  <title>Bill Tracker</title>
+  <title>Ford Family Bills</title>
   <style>
     :root {
       --bg:           #0f1117;
@@ -86,6 +86,16 @@
     .badge.caroline { background: #4c1d1d; color: #f87171; }
     .badge.overdue  { background: #7f1d1d; color: #fca5a5; }
 
+    .badge.utilities  { background: #164e63; color: #67e8f9; }
+    .badge.streaming  { background: #1e1b4b; color: #a5b4fc; }
+    .badge.health     { background: #064e3b; color: #6ee7b7; }
+    .badge.wellness   { background: #1a2e05; color: #bef264; }
+    .badge.insurance  { background: #3b0764; color: #e879f9; }
+    .badge.education  { background: #422006; color: #fdba74; }
+    .badge.software   { background: #0c1a2e; color: #38bdf8; }
+    .badge.finance    { background: #1c1917; color: #d6d3d1; }
+    .badge.other      { background: #2d3748; color: #94a3b8; }
+
     .actions { display: flex; flex-wrap: wrap; gap: 0.4rem; align-items: center; }
 
     .btn { display: inline-block; padding: 0.3rem 0.7rem; border: none; border-radius: 6px; cursor: pointer; font-size: 0.8rem; font-weight: 500; }
@@ -122,7 +132,7 @@
     .edit-dialog {
       background: var(--surface); border: 1px solid var(--border); border-radius: 12px;
       color: var(--text); padding: 1.5rem; width: min(600px, 95vw);
-      max-height: 90vh; overflow-y: auto;
+      max-height: 90vh; overflow-y: auto; margin: auto;
     }
     .edit-dialog::backdrop { background: rgba(0,0,0,0.6); }
     .dialog-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; }
@@ -139,7 +149,7 @@
 
 <div class="header">
   <div>
-    <h1>Bill Tracker</h1>
+    <h1>Ford Family Bills</h1>
     <p style="color:var(--text-muted);font-size:0.85rem;">{{ today }}</p>
   </div>
   <div class="header-right">
@@ -181,10 +191,17 @@
                 border-radius:6px;color:var(--text);padding:0.4rem 0.7rem;font-size:0.875rem;">
 </div>
 <div class="filter-bar">
-  <span>Filter:</span>
-  <button class="filter-btn active" data-filter="all" onclick="filterCategory('all')">All</button>
+  <span style="min-width:5rem;">Member:</span>
+  <button class="filter-btn active" data-filter-member="all" onclick="filterMember('all')">All</button>
   {% for c in categories %}
-  <button class="filter-btn" data-filter="{{ c }}" onclick="filterCategory('{{ c }}')"><span class="badge {{ c }}">{{ c }}</span></button>
+  <button class="filter-btn" data-filter-member="{{ c }}" onclick="filterMember('{{ c }}')"><span class="badge {{ c }}">{{ c }}</span></button>
+  {% endfor %}
+</div>
+<div class="filter-bar" style="margin-top:0.4rem;">
+  <span style="min-width:5rem;">Type:</span>
+  <button class="filter-btn active" data-filter-type="all" onclick="filterType('all')">All</button>
+  {% for t in bill_types %}
+  <button class="filter-btn" data-filter-type="{{ t }}" onclick="filterType('{{ t }}')"><span class="badge {{ t }}">{{ t }}</span></button>
   {% endfor %}
 </div>
 
@@ -196,14 +213,15 @@
       <th class="sortable" data-col="1">Amount</th>
       <th class="sortable" data-col="2">Next Due</th>
       <th>Frequency</th>
-      <th class="sortable" data-col="4">Family member</th>
+      <th class="sortable" data-col="4">Member</th>
+      <th class="sortable" data-col="5">Type</th>
       <th>Notes</th>
       <th></th>
     </tr>
   </thead>
   <tbody>
     {% for b in bills %}
-    <tr class="{{ 'inactive' if not b.active }}" data-cat="{{ b.category }}">
+    <tr class="{{ 'inactive' if not b.active }}" data-cat="{{ b.category }}" data-type="{{ b.bill_type }}">
       <td>
         {% if b.url %}
         <a href="{{ b.url }}" target="_blank" rel="noopener"
@@ -230,6 +248,7 @@
       </td>
       <td>{{ b.frequency }}</td>
       <td data-val="{{ b.category }}"><span class="badge {{ b.category }}">{{ b.category }}</span></td>
+      <td data-val="{{ b.bill_type }}"><span class="badge {{ b.bill_type }}">{{ b.bill_type }}</span></td>
       <td style="color:var(--text-muted);font-size:0.8rem;max-width:12rem;">{{ b.notes or '' }}</td>
       <td>
         <div class="actions">
@@ -301,10 +320,18 @@
       </select>
     </div>
     <div>
-      <label>Category</label>
+      <label>Family member</label>
       <select name="category">
         {% for c in categories %}
         <option value="{{ c }}" {{ 'selected' if b.category == c }}>{{ c }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div>
+      <label>Type</label>
+      <select name="bill_type">
+        {% for t in bill_types %}
+        <option value="{{ t }}" {{ 'selected' if b.bill_type == t }}>{{ t }}</option>
         {% endfor %}
       </select>
     </div>
@@ -358,9 +385,15 @@
       </select>
     </div>
     <div>
-      <label>Category</label>
+      <label>Family member</label>
       <select name="category">
         {% for c in categories %}<option value="{{ c }}">{{ c }}</option>{% endfor %}
+      </select>
+    </div>
+    <div>
+      <label>Type</label>
+      <select name="bill_type">
+        {% for t in bill_types %}<option value="{{ t }}">{{ t }}</option>{% endfor %}
       </select>
     </div>
     <div class="full">
@@ -398,6 +431,22 @@
 </div>
 {% endif %}
 
+{% if type_totals %}
+<h2>Monthly spend by type</h2>
+<div style="background:var(--surface);border-radius:10px;padding:1rem 1.25rem;margin-bottom:1rem;">
+  {% set type_max = type_totals.values()|max %}
+  {% for t, val in type_totals.items()|sort(attribute='1', reverse=True) %}
+  <div class="chart-bar-row">
+    <span class="badge {{ t }} chart-label">{{ t }}</span>
+    <div class="chart-track">
+      <div class="chart-fill badge {{ t }}" style="width:{{ ((val / type_max) * 100)|round(1) }}%;border-radius:4px;"></div>
+    </div>
+    <span class="chart-value">£{{ "%.2f"|format(val) }}/mo</span>
+  </div>
+  {% endfor %}
+</div>
+{% endif %}
+
 {% if spending_trends %}
 <h2>Spending trends</h2>
 <div style="background:var(--surface);border-radius:10px;padding:1rem 1.25rem;">
@@ -406,7 +455,7 @@
     {% for label, total in spending_trends %}
     <div style="display:flex;flex-direction:column;align-items:center;gap:0.3rem;min-width:3rem;flex:1;">
       <span style="font-size:0.65rem;color:var(--text-muted);">£{{ "%.0f"|format(total) }}</span>
-      <div style="width:100%;background:#1d4ed8;border-radius:4px 4px 0 0;
+      <div style="width:100%;background:#4b5563;border-radius:4px 4px 0 0;
                   height:{{ ((total / trend_max) * 6.5)|round(2) }}rem;
                   min-height:0.2rem;transition:height 0.3s;"></div>
       <span style="font-size:0.65rem;color:var(--text-muted);white-space:nowrap;">{{ label }}</span>
@@ -484,29 +533,35 @@ document.querySelectorAll('dialog').forEach(function(dlg) {
   dlg.addEventListener('cancel', function() {});
 });
 
-// --- Search ---
-var _activeFilter = 'all';
-function searchBills(term) {
-  var q = term.toLowerCase();
-  document.querySelectorAll('#bills-table tbody tr').forEach(function(tr) {
-    var name = tr.cells[0].textContent.toLowerCase();
-    var catOk = (_activeFilter === 'all' || tr.dataset.cat === _activeFilter);
-    tr.style.display = (catOk && name.includes(q)) ? '' : 'none';
-  });
-}
+// --- Search + filter state ---
+var _activeMember = 'all', _activeType = 'all';
 
-// --- Category filter ---
-function filterCategory(cat) {
-  _activeFilter = cat;
-  document.querySelectorAll('.filter-btn').forEach(function(b) {
-    b.classList.toggle('active', b.dataset.filter === cat);
-  });
+function _applyFilters() {
   var q = (document.getElementById('bill-search') || {value:''}).value.toLowerCase();
   document.querySelectorAll('#bills-table tbody tr').forEach(function(tr) {
     var name = tr.cells[0].textContent.toLowerCase();
-    var catOk = (cat === 'all' || tr.dataset.cat === cat);
-    tr.style.display = (catOk && name.includes(q)) ? '' : 'none';
+    var memberOk = (_activeMember === 'all' || tr.dataset.cat === _activeMember);
+    var typeOk   = (_activeType   === 'all' || tr.dataset.type === _activeType);
+    tr.style.display = (memberOk && typeOk && name.includes(q)) ? '' : 'none';
   });
+}
+
+function searchBills(term) { _applyFilters(); }
+
+function filterMember(val) {
+  _activeMember = val;
+  document.querySelectorAll('[data-filter-member]').forEach(function(b) {
+    b.classList.toggle('active', b.dataset.filterMember === val);
+  });
+  _applyFilters();
+}
+
+function filterType(val) {
+  _activeType = val;
+  document.querySelectorAll('[data-filter-type]').forEach(function(b) {
+    b.classList.toggle('active', b.dataset.filterType === val);
+  });
+  _applyFilters();
 }
 
 // --- Column sort ---

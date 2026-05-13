@@ -1,12 +1,12 @@
 [Unit]
-Description=Bill & Subscription Tracker
+Description=Ford Family Bills
 After=network.target
 
 [Service]
 Type=simple
-User=pi
-WorkingDirectory=/home/pi/bill_tracker
-ExecStart=/home/pi/bill_tracker/venv/bin/python -m app.main
+User=james
+WorkingDirectory=/home/james/bill_tracker
+ExecStart=/home/james/bill_tracker/venv/bin/python -m app.main
 Restart=on-failure
 RestartSec=10
 Environment=NTFY_TOPIC=your-topic-here

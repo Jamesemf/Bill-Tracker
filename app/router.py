@@ -8,6 +8,7 @@ from fastapi.responses import HTMLResponse, RedirectResponse, StreamingResponse
 from fastapi.templating import Jinja2Templates
 
 from app.models import (
+    BILL_TYPES,
     CATEGORIES,
     FREQUENCIES,
     annual_total,
@@ -18,6 +19,7 @@ from app.models import (
     next_due_date,
     overdue_bill_ids,
     spending_trends,
+    type_monthly_totals,
 )
 
 templates = Jinja2Templates(directory=Path(__file__).parent / "templates")
@@ -60,6 +62,7 @@ def _dashboard_context(today: date, conn, edit_bill_id: int | None = None) -> di
     paid_this_month = {r["bill_id"] for r in paid_rows}
     overdue = overdue_bill_ids(conn, paid_this_month)
     trends = spending_trends(conn)
+    type_totals = type_monthly_totals(conn)
     ctx = {
         "bills": bills,
         "history": history,
@@ -71,6 +74,8 @@ def _dashboard_context(today: date, conn, edit_bill_id: int | None = None) -> di
         "paid_this_month": paid_this_month,
         "overdue_ids": overdue,
         "spending_trends": trends,
+        "type_totals": type_totals,
+        "bill_types": BILL_TYPES,
         "frequencies": FREQUENCIES,
         "categories": CATEGORIES,
         "weekdays": WEEKDAYS,
@@ -96,14 +101,15 @@ async def add_bill(
     due_day: int = Form(...),
     frequency: str = Form("monthly"),
     category: str = Form("james"),
+    bill_type: str = Form("other"),
     auto_pay: str = Form(default=""),
     notes: str = Form(""),
     url: str = Form(""),
 ):
     with db() as conn:
         conn.execute(
-            "INSERT INTO bills (name, amount, currency, due_day, frequency, category, auto_pay, notes, url) VALUES (?,?,?,?,?,?,?,?,?)",
-            (name, amount, "GBP", due_day, frequency, category, 1 if auto_pay else 0, notes or None, url or None),
+            "INSERT INTO bills (name, amount, currency, due_day, frequency, category, bill_type, auto_pay, notes, url) VALUES (?,?,?,?,?,?,?,?,?,?)",
+            (name, amount, "GBP", due_day, frequency, category, bill_type, 1 if auto_pay else 0, notes or None, url or None),
         )
     return RedirectResponse("/", status_code=303)
 
@@ -127,6 +133,7 @@ async def edit_bill(
     due_day: int = Form(...),
     frequency: str = Form("monthly"),
     category: str = Form("james"),
+    bill_type: str = Form("other"),
     auto_pay: str = Form(default=""),
     notes: str = Form(""),
     url: str = Form(""),
@@ -136,8 +143,8 @@ async def edit_bill(
         if not bill:
             raise HTTPException(status_code=404)
         conn.execute(
-            "UPDATE bills SET name=?, amount=?, due_day=?, frequency=?, category=?, auto_pay=?, notes=?, url=? WHERE id=?",
-            (name, amount, due_day, frequency, category, 1 if auto_pay else 0, notes or None, url or None, bill_id),
+            "UPDATE bills SET name=?, amount=?, due_day=?, frequency=?, category=?, bill_type=?, auto_pay=?, notes=?, url=? WHERE id=?",
+            (name, amount, due_day, frequency, category, bill_type, 1 if auto_pay else 0, notes or None, url or None, bill_id),
         )
     return RedirectResponse("/", status_code=303)
 
