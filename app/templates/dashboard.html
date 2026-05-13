@@ -7,142 +7,242 @@
   <title>Ford Family Bills</title>
   <style>
     :root {
-      --bg:           #0f1117;
-      --surface:      #1e2330;
-      --surface2:     #1a2235;
-      --border:       #2d3748;
-      --text:         #e2e8f0;
-      --text-muted:   #64748b;
-      --text-sub:     #94a3b8;
-      --green:        #34d399;
-      --amber:        #fbbf24;
-      --blue:         #60a5fa;
-      --alert-bg:     #422006;
-      --alert-border: #92400e;
+      --bg:           #0b0d13;
+      --surface:      #13161f;
+      --surface2:     #191d28;
+      --surface3:     #1e2333;
+      --border:       rgba(255,255,255,0.07);
+      --border-strong:rgba(255,255,255,0.13);
+      --text:         #e4e9f5;
+      --text-muted:   #4e5a72;
+      --text-sub:     #7a8aa8;
+      --green:        #2dd4a4;
+      --amber:        #f59e0b;
+      --blue:         #5b8df5;
+      --alert-bg:     rgba(245,158,11,0.07);
+      --alert-border: rgba(245,158,11,0.25);
       --alert-text:   #fcd34d;
-      --input-bg:     #0f1117;
+      --input-bg:     #0d1017;
+      --shadow:       0 1px 3px rgba(0,0,0,0.5), 0 1px 2px rgba(0,0,0,0.4);
+      --shadow-lg:    0 8px 24px rgba(0,0,0,0.5);
+      --radius:       10px;
     }
     body.light {
-      --bg:           #f8fafc;
+      --bg:           #f0f2f7;
       --surface:      #ffffff;
-      --surface2:     #f1f5f9;
-      --border:       #cbd5e1;
-      --text:         #0f172a;
-      --text-muted:   #64748b;
-      --text-sub:     #475569;
+      --surface2:     #f7f9fc;
+      --surface3:     #eef1f7;
+      --border:       rgba(0,0,0,0.06);
+      --border-strong:rgba(0,0,0,0.12);
+      --text:         #111827;
+      --text-muted:   #9ca3af;
+      --text-sub:     #6b7280;
       --green:        #059669;
       --amber:        #d97706;
-      --blue:         #2563eb;
-      --alert-bg:     #fef3c7;
-      --alert-border: #f59e0b;
+      --blue:         #3b63d4;
+      --alert-bg:     rgba(245,158,11,0.06);
+      --alert-border: rgba(245,158,11,0.3);
       --alert-text:   #92400e;
-      --input-bg:     #f8fafc;
+      --input-bg:     #f9fafb;
+      --shadow:       0 1px 3px rgba(0,0,0,0.07), 0 1px 2px rgba(0,0,0,0.05);
+      --shadow-lg:    0 8px 24px rgba(0,0,0,0.1);
     }
 
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-    body { font-family: system-ui, sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; padding: 2rem; }
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+           background: var(--bg); color: var(--text); min-height: 100vh; padding: 2rem; }
 
-    h1 { font-size: 1.6rem; font-weight: 700; margin-bottom: 0.25rem; }
-    h2 { font-size: 1rem; font-weight: 600; color: var(--text-sub); margin: 1.5rem 0 0.75rem; text-transform: uppercase; letter-spacing: 0.05em; }
+    h1 { font-size: 1.5rem; font-weight: 700; margin-bottom: 0.2rem; letter-spacing: -0.02em; }
+    h2 { font-size: 0.7rem; font-weight: 600; color: var(--text-muted); margin: 2rem 0 0.75rem;
+         text-transform: uppercase; letter-spacing: 0.08em; }
 
-    .header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 1.5rem; flex-wrap: wrap; gap: 1rem; }
+    .header { display: flex; justify-content: space-between; align-items: flex-start;
+               margin-bottom: 2rem; flex-wrap: wrap; gap: 1rem; }
     .header-right { display: flex; align-items: flex-start; gap: 1rem; flex-wrap: wrap; }
-    .header-actions { display: flex; flex-direction: column; gap: 0.5rem; align-items: flex-end; }
+    .header-actions { display: flex; flex-direction: column; gap: 0.4rem; align-items: flex-end; }
 
-    .stat-cards { display: flex; gap: 1rem; flex-wrap: wrap; }
-    .card { background: var(--surface); border-radius: 10px; padding: 1rem 1.5rem; min-width: 150px; }
-    .card .label { font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; }
-    .card .value { font-size: 1.8rem; font-weight: 700; margin-top: 0.25rem; }
+    .stat-cards { display: flex; gap: 0.75rem; flex-wrap: wrap; }
+    .card { background: var(--surface); border-radius: var(--radius); padding: 1rem 1.25rem;
+            min-width: 140px; border: 1px solid var(--border); box-shadow: var(--shadow); }
+    .card .label { font-size: 0.68rem; color: var(--text-muted); text-transform: uppercase;
+                   letter-spacing: 0.07em; font-weight: 500; }
+    .card .value { font-size: 1.7rem; font-weight: 700; margin-top: 0.2rem; letter-spacing: -0.03em; }
     .card .value.green { color: var(--green); }
     .card .value.amber { color: var(--amber); }
+    .card-sm { padding: 0.6rem 1rem; min-width: 0; }
+    .card-sm .value { font-size: 1.1rem; }
 
-    .alert-banner { background: var(--alert-bg); border: 1px solid var(--alert-border); border-radius: 8px; padding: 0.75rem 1rem; margin-bottom: 1rem; }
-    .alert-banner p { font-size: 0.9rem; color: var(--alert-text); margin: 0.2rem 0; }
+    .alert-banner { background: var(--alert-bg); border: 1px solid var(--alert-border);
+                    border-radius: var(--radius); padding: 0.75rem 1rem; margin-bottom: 1.25rem; }
+    .alert-banner p { font-size: 0.875rem; color: var(--alert-text); margin: 0.2rem 0; }
 
-    .filter-bar { display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; margin-bottom: 0.75rem; }
-    .filter-bar span { font-size: 0.75rem; color: var(--text-muted); }
-    .filter-btn { background: none; border: 1px solid var(--border); border-radius: 999px; cursor: pointer; padding: 0.2rem 0.6rem; font-size: 0.75rem; color: var(--text-sub); }
-    .filter-btn:hover { border-color: var(--blue); color: var(--text); }
-    .filter-btn.active { border-color: var(--blue); color: var(--blue); }
+    .filter-bar { display: flex; align-items: center; gap: 0.4rem; flex-wrap: wrap; margin-bottom: 0.5rem; }
+    .filter-bar span { font-size: 0.7rem; color: var(--text-muted); min-width: 4.5rem; font-weight: 500; }
+    .filter-btn { background: none; border: 1px solid var(--border); border-radius: 6px;
+                  cursor: pointer; padding: 0.25rem 0.65rem; font-size: 0.75rem; color: var(--text-sub);
+                  transition: border-color 0.15s, background 0.15s; }
+    .filter-btn:hover { border-color: var(--border-strong); background: var(--surface2); color: var(--text); }
+    .filter-btn.active { border-color: var(--blue); background: rgba(91,141,245,0.08); color: var(--blue); }
 
-    .table-wrap { overflow-x: auto; }
-    table { width: 100%; border-collapse: collapse; font-size: 0.875rem; }
-    th { text-align: left; padding: 0.5rem 0.75rem; color: var(--text-muted); font-weight: 500; border-bottom: 1px solid var(--border); white-space: nowrap; }
-    td { padding: 0.6rem 0.75rem; border-bottom: 1px solid var(--surface2); vertical-align: middle; }
-    tr:hover td { background: var(--surface2); }
-    tr.inactive td { opacity: 0.4; }
+    .table-wrap { overflow-x: auto; border-radius: var(--radius); border: 1px solid var(--border); }
+    table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+    thead { background: var(--surface2); }
+    th { text-align: left; padding: 0.6rem 0.9rem; color: var(--text-muted); font-weight: 500;
+         font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.05em;
+         border-bottom: 1px solid var(--border); white-space: nowrap; }
+    td { padding: 0.7rem 0.9rem; border-bottom: 1px solid var(--border); vertical-align: middle; }
+    tbody tr:last-child td { border-bottom: none; }
+    tbody tr:hover td { background: var(--surface2); }
+    tr.inactive td { opacity: 0.35; }
 
     .sortable { cursor: pointer; user-select: none; }
-    .sortable:hover { color: var(--text); }
-    .sortable::after { content: ' \2195'; font-size: 0.65rem; color: var(--text-muted); }
-    .sortable.asc::after  { content: ' \2191'; color: var(--blue); }
-    .sortable.desc::after { content: ' \2193'; color: var(--blue); }
+    .sortable:hover { color: var(--text-sub); }
+    .sortable::after { content: ' \2195'; font-size: 0.6rem; opacity: 0.5; }
+    .sortable.asc::after  { content: ' \2191'; color: var(--blue); opacity: 1; }
+    .sortable.desc::after { content: ' \2193'; color: var(--blue); opacity: 1; }
 
-    .badge { display: inline-block; padding: 0.15rem 0.5rem; border-radius: 999px; font-size: 0.7rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; }
-    .badge.james    { background: #1e3a5f; color: #60a5fa; }
-    .badge.chris    { background: #14532d; color: #4ade80; }
-    .badge.sophia   { background: #3b1f6e; color: #c084fc; }
-    .badge.daniel   { background: #3d2a06; color: #fbbf24; }
-    .badge.caroline { background: #4c1d1d; color: #f87171; }
+    /* Family member chip — coloured dot + name, no background box */
+    .member-chip { display: inline-flex; align-items: center; gap: 0.45rem;
+                   font-size: 0.82rem; font-weight: 500; color: var(--text-sub); }
+    .member-chip::before { content: ''; width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+    .member-chip.james::before   { background: #60a5fa; }
+    .member-chip.chris::before   { background: #34d399; }
+    .member-chip.sophia::before  { background: #a78bfa; }
+    .member-chip.daniel::before  { background: #fbbf24; }
+    .member-chip.caroline::before{ background: #fb7185; }
+
+    /* Type tag — subtle tinted bordered pill */
+    .type-tag { display: inline-block; padding: 0.18rem 0.55rem; border-radius: 5px;
+                font-size: 0.69rem; font-weight: 500; text-transform: capitalize;
+                border: 1px solid currentColor; }
+    .type-tag.utilities  { color: #67c8e8; border-color: rgba(103,200,232,0.25); background: rgba(103,200,232,0.07); }
+    .type-tag.streaming  { color: #a78bfa; border-color: rgba(167,139,250,0.25); background: rgba(167,139,250,0.07); }
+    .type-tag.health     { color: #34d399; border-color: rgba(52,211,153,0.25);  background: rgba(52,211,153,0.07);  }
+    .type-tag.wellness   { color: #86efac; border-color: rgba(134,239,172,0.25); background: rgba(134,239,172,0.07); }
+    .type-tag.insurance  { color: #c084fc; border-color: rgba(192,132,252,0.25); background: rgba(192,132,252,0.07); }
+    .type-tag.education  { color: #fdba74; border-color: rgba(253,186,116,0.25); background: rgba(253,186,116,0.07); }
+    .type-tag.software   { color: #7dd3fc; border-color: rgba(125,211,252,0.25); background: rgba(125,211,252,0.07); }
+    .type-tag.finance    { color: #94a3b8; border-color: rgba(148,163,184,0.2);  background: rgba(148,163,184,0.06); }
+    .type-tag.other      { color: #6b7280; border-color: rgba(107,114,128,0.2);  background: rgba(107,114,128,0.06); }
+
+    /* Badge — kept for chart fills only */
+    .badge { display: inline-block; padding: 0.15rem 0.5rem; border-radius: 5px;
+             font-size: 0.69rem; font-weight: 500; text-transform: capitalize; }
+    .badge.james    { background: #1d4ed8; color: #bfdbfe; }
+    .badge.chris    { background: #065f46; color: #a7f3d0; }
+    .badge.sophia   { background: #5b21b6; color: #ddd6fe; }
+    .badge.daniel   { background: #b45309; color: #fde68a; }
+    .badge.caroline { background: #9f1239; color: #fecdd3; }
     .badge.overdue  { background: #7f1d1d; color: #fca5a5; }
+    .badge.utilities  { background: #0e7490; color: #cffafe; }
+    .badge.streaming  { background: #4c1d95; color: #ede9fe; }
+    .badge.health     { background: #064e3b; color: #d1fae5; }
+    .badge.wellness   { background: #14532d; color: #dcfce7; }
+    .badge.insurance  { background: #581c87; color: #f3e8ff; }
+    .badge.education  { background: #7c2d12; color: #ffedd5; }
+    .badge.software   { background: #075985; color: #e0f2fe; }
+    .badge.finance    { background: #334155; color: #e2e8f0; }
+    .badge.other      { background: #1f2937; color: #d1d5db; }
 
-    .badge.utilities  { background: #164e63; color: #67e8f9; }
-    .badge.streaming  { background: #1e1b4b; color: #a5b4fc; }
-    .badge.health     { background: #064e3b; color: #6ee7b7; }
-    .badge.wellness   { background: #1a2e05; color: #bef264; }
-    .badge.insurance  { background: #3b0764; color: #e879f9; }
-    .badge.education  { background: #422006; color: #fdba74; }
-    .badge.software   { background: #0c1a2e; color: #38bdf8; }
-    .badge.finance    { background: #1c1917; color: #d6d3d1; }
-    .badge.other      { background: #2d3748; color: #94a3b8; }
+    /* Chart fill — solid colours for bar charts */
+    .chart-fill.james    { background: #2563eb; }
+    .chart-fill.chris    { background: #059669; }
+    .chart-fill.sophia   { background: #7c3aed; }
+    .chart-fill.daniel   { background: #d97706; }
+    .chart-fill.caroline { background: #e11d48; }
+    .chart-fill.utilities  { background: #0891b2; }
+    .chart-fill.streaming  { background: #6d28d9; }
+    .chart-fill.health     { background: #059669; }
+    .chart-fill.wellness   { background: #16a34a; }
+    .chart-fill.insurance  { background: #7c3aed; }
+    .chart-fill.education  { background: #c2410c; }
+    .chart-fill.software   { background: #0284c7; }
+    .chart-fill.finance    { background: #475569; }
+    .chart-fill.other      { background: #374151; }
 
-    .actions { display: flex; flex-wrap: wrap; gap: 0.4rem; align-items: center; }
+    .actions { display: flex; flex-wrap: wrap; gap: 0.35rem; align-items: center; }
 
-    .btn { display: inline-block; padding: 0.3rem 0.7rem; border: none; border-radius: 6px; cursor: pointer; font-size: 0.8rem; font-weight: 500; }
-    .btn-pay  { background: #065f46; color: #d1fae5; }
-    .btn-pay:hover  { background: #047857; }
-    .btn-edit { background: #2d3748; color: var(--text); }
-    .btn-edit:hover { background: #374151; }
-    .btn-tog  { background: #1e3a5f; color: #bfdbfe; }
-    .btn-tog:hover  { background: #1d4ed8; }
-    .btn-del  { background: #4c1d1d; color: #fecaca; }
-    .btn-del:hover  { background: #991b1b; }
-    .btn-add  { background: #1d4ed8; color: #fff; padding: 0.5rem 1.2rem; font-size: 0.9rem; }
-    .btn-add:hover  { background: #2563eb; }
-    .btn-sm   { padding: 0.2rem 0.5rem; font-size: 0.75rem; }
+    .btn { display: inline-block; padding: 0.3rem 0.7rem; border: none; border-radius: 6px;
+           cursor: pointer; font-size: 0.78rem; font-weight: 500; transition: opacity 0.15s, filter 0.15s; }
+    .btn:hover { filter: brightness(1.15); }
+    .btn-pay  { background: #065f46; color: #a7f3d0; }
+    .btn-edit { background: var(--surface2); color: var(--text-sub); border: 1px solid var(--border); }
+    .btn-edit:hover { filter: none; background: var(--surface3); color: var(--text); }
+    .btn-tog  { background: rgba(91,141,245,0.12); color: var(--blue); border: 1px solid rgba(91,141,245,0.2); }
+    .btn-tog:hover { filter: none; background: rgba(91,141,245,0.2); }
+    .btn-del  { background: rgba(239,68,68,0.1); color: #f87171; border: 1px solid rgba(239,68,68,0.2); }
+    .btn-del:hover { filter: none; background: rgba(239,68,68,0.18); }
+    .btn-add  { background: var(--blue); color: #fff; padding: 0.4rem 1rem; font-size: 0.85rem; }
+    .btn-sm   { padding: 0.2rem 0.45rem; font-size: 0.72rem; }
 
-    .amount-input {
-      width: 5.5rem; background: var(--input-bg); border: 1px solid var(--border);
-      border-radius: 6px; color: var(--text); padding: 0.25rem 0.4rem; font-size: 0.8rem;
-    }
+    .amount-input { width: 5rem; background: var(--input-bg); border: 1px solid var(--border);
+                    border-radius: 6px; color: var(--text); padding: 0.25rem 0.4rem; font-size: 0.78rem; }
 
-    .bill-form { background: var(--surface); border-radius: 10px; padding: 1.25rem; margin-top: 0.5rem; display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 0.75rem; }
-    .bill-form label { font-size: 0.75rem; color: var(--text-sub); display: block; margin-bottom: 0.25rem; }
+    .bill-form { background: var(--surface); border-radius: var(--radius); padding: 1.25rem;
+                 margin-top: 0.75rem; display: grid;
+                 grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 0.75rem;
+                 border: 1px solid var(--border); }
+    .bill-form label { font-size: 0.7rem; color: var(--text-muted); display: block;
+                       margin-bottom: 0.3rem; text-transform: uppercase; letter-spacing: 0.05em; font-weight: 500; }
     .bill-form input, .bill-form select, .bill-form textarea {
       width: 100%; background: var(--input-bg); border: 1px solid var(--border); border-radius: 6px;
-      color: var(--text); padding: 0.4rem 0.6rem; font-size: 0.875rem;
-    }
-    .bill-form input:focus, .bill-form select:focus { outline: none; border-color: #3b82f6; }
+      color: var(--text); padding: 0.4rem 0.65rem; font-size: 0.85rem; }
+    .bill-form input:focus, .bill-form select:focus { outline: none; border-color: var(--blue);
+      box-shadow: 0 0 0 3px rgba(91,141,245,0.12); }
     .bill-form .full { grid-column: 1 / -1; }
     .bill-form .submit-row { grid-column: 1 / -1; display: flex; justify-content: flex-end; gap: 0.5rem; }
 
-    details summary { cursor: pointer; color: var(--blue); font-size: 0.9rem; margin-bottom: 0.5rem; }
-    details summary:hover { color: #93c5fd; }
+    details summary { cursor: pointer; color: var(--text-sub); font-size: 0.85rem; margin-bottom: 0.5rem;
+                      font-weight: 500; }
+    details summary:hover { color: var(--text); }
 
-    .edit-dialog {
-      background: var(--surface); border: 1px solid var(--border); border-radius: 12px;
-      color: var(--text); padding: 1.5rem; width: min(600px, 95vw);
-      max-height: 90vh; overflow-y: auto; margin: auto;
+    .edit-dialog { background: var(--surface); border: 1px solid var(--border-strong);
+                   border-radius: 14px; color: var(--text); padding: 1.5rem;
+                   width: min(580px, 95vw); max-height: 90vh; overflow-y: auto;
+                   margin: auto; box-shadow: var(--shadow-lg); }
+    .edit-dialog::backdrop { background: rgba(0,0,0,0.65); backdrop-filter: blur(2px); }
+    .dialog-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.25rem; }
+    .dialog-header strong { font-size: 0.95rem; font-weight: 600; }
+
+    .chart-bar-row { display: flex; align-items: center; gap: 0.75rem; margin-bottom: 0.6rem; }
+    .chart-label { width: 6rem; text-align: right; flex-shrink: 0; font-size: 0.75rem; color: var(--text-sub); }
+    .chart-track { flex: 1; background: var(--surface2); border-radius: 4px; overflow: hidden; height: 1.1rem; }
+    .chart-fill { height: 100%; border-radius: 4px; transition: width 0.4s ease; }
+    .chart-value { font-size: 0.75rem; color: var(--text-sub); min-width: 5rem; text-align: right; flex-shrink: 0; }
+
+    @media (max-width: 640px) {
+      body { padding: 1rem; }
+      h2 { margin: 1.25rem 0 0.5rem; }
+
+      /* Header — stack vertically */
+      .header { flex-direction: column; gap: 0.75rem; margin-bottom: 1rem; }
+      .header-right { flex-direction: column; width: 100%; gap: 0.75rem; }
+      .header-actions { flex-direction: row; justify-content: flex-start; }
+
+      /* Stat cards — equal width, single row */
+      .stat-cards { width: 100%; }
+      .card { flex: 1; min-width: 0; padding: 0.75rem; }
+      .card .value { font-size: 1.3rem; }
+      .card .label { font-size: 0.68rem; }
+
+      /* Filter bars — horizontal scroll, no wrapping */
+      .filter-bar { flex-wrap: nowrap; overflow-x: auto; -webkit-overflow-scrolling: touch;
+                    padding-bottom: 0.25rem; scrollbar-width: none; margin-bottom: 0.4rem; }
+      .filter-bar::-webkit-scrollbar { display: none; }
+      .filter-bar span { flex-shrink: 0; }
+      .filter-btn { flex-shrink: 0; }
+
+      /* Table — hide Notes column */
+      .col-notes { display: none; }
+
+      /* Action buttons — tighter */
+      .actions { gap: 0.3rem; }
+      .amount-input { width: 4rem; }
+
+      /* Charts — narrower labels */
+      .chart-label { width: 4.5rem; font-size: 0.65rem; }
+      .chart-value { min-width: 3.5rem; font-size: 0.72rem; }
     }
-    .edit-dialog::backdrop { background: rgba(0,0,0,0.6); }
-    .dialog-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; }
-    .dialog-header strong { font-size: 1rem; }
-
-    .chart-bar-row { display: flex; align-items: center; gap: 0.75rem; margin-bottom: 0.5rem; }
-    .chart-label { width: 6rem; text-align: center; flex-shrink: 0; }
-    .chart-track { flex: 1; background: var(--surface2); border-radius: 4px; overflow: hidden; height: 1.25rem; }
-    .chart-fill { height: 100%; border-radius: 4px; transition: width 0.3s; }
-    .chart-value { font-size: 0.8rem; color: var(--text-sub); min-width: 5rem; text-align: right; flex-shrink: 0; }
   </style>
 </head>
 <body>
@@ -167,6 +267,18 @@
         <div class="value">{{ bills | selectattr('active', 'equalto', 1) | list | length }}</div>
       </div>
     </div>
+    {% if cat_totals %}
+    <div class="stat-cards" style="margin-top:0.5rem;">
+      {% for member in categories %}
+      {% if member in cat_totals %}
+      <div class="card card-sm">
+        <div class="label"><span class="member-chip {{ member }}">{{ member }}</span></div>
+        <div class="value">£{{ "%.2f"|format(cat_totals[member]) }}</div>
+      </div>
+      {% endif %}
+      {% endfor %}
+    </div>
+    {% endif %}
     <div class="header-actions">
       <button class="btn btn-tog" id="theme-toggle" onclick="toggleTheme()">Light mode</button>
       <a href="/export/csv" class="btn btn-add" style="text-decoration:none;font-size:0.8rem;padding:0.3rem 0.7rem;">Export CSV</a>
@@ -194,14 +306,14 @@
   <span style="min-width:5rem;">Member:</span>
   <button class="filter-btn active" data-filter-member="all" onclick="filterMember('all')">All</button>
   {% for c in categories %}
-  <button class="filter-btn" data-filter-member="{{ c }}" onclick="filterMember('{{ c }}')"><span class="badge {{ c }}">{{ c }}</span></button>
+  <button class="filter-btn" data-filter-member="{{ c }}" onclick="filterMember('{{ c }}')"><span class="member-chip {{ c }}">{{ c }}</span></button>
   {% endfor %}
 </div>
 <div class="filter-bar" style="margin-top:0.4rem;">
   <span style="min-width:5rem;">Type:</span>
   <button class="filter-btn active" data-filter-type="all" onclick="filterType('all')">All</button>
   {% for t in bill_types %}
-  <button class="filter-btn" data-filter-type="{{ t }}" onclick="filterType('{{ t }}')"><span class="badge {{ t }}">{{ t }}</span></button>
+  <button class="filter-btn" data-filter-type="{{ t }}" onclick="filterType('{{ t }}')"><span class="type-tag {{ t }}">{{ t }}</span></button>
   {% endfor %}
 </div>
 
@@ -215,7 +327,7 @@
       <th>Frequency</th>
       <th class="sortable" data-col="4">Member</th>
       <th class="sortable" data-col="5">Type</th>
-      <th>Notes</th>
+      <th class="col-notes">Notes</th>
       <th></th>
     </tr>
   </thead>
@@ -247,9 +359,9 @@
         {% endif %}
       </td>
       <td>{{ b.frequency }}</td>
-      <td data-val="{{ b.category }}"><span class="badge {{ b.category }}">{{ b.category }}</span></td>
-      <td data-val="{{ b.bill_type }}"><span class="badge {{ b.bill_type }}">{{ b.bill_type }}</span></td>
-      <td style="color:var(--text-muted);font-size:0.8rem;max-width:12rem;">{{ b.notes or '' }}</td>
+      <td data-val="{{ b.category }}"><span class="member-chip {{ b.category }}">{{ b.category }}</span></td>
+      <td data-val="{{ b.bill_type }}"><span class="type-tag {{ b.bill_type }}">{{ b.bill_type }}</span></td>
+      <td class="col-notes" style="color:var(--text-muted);font-size:0.8rem;max-width:12rem;">{{ b.notes or '' }}</td>
       <td>
         <div class="actions">
           {% if b.active %}
@@ -420,10 +532,9 @@
   {% set max_val = cat_totals.values()|max %}
   {% for cat, val in cat_totals.items()|sort(attribute='1', reverse=True) %}
   <div class="chart-bar-row">
-    <span class="badge {{ cat }} chart-label">{{ cat }}</span>
+    <span class="member-chip {{ cat }} chart-label" style="justify-content:flex-end;">{{ cat }}</span>
     <div class="chart-track">
-      <div class="chart-fill badge {{ cat }}"
-           style="width:{{ ((val / max_val) * 100)|round(1) }}%;border-radius:4px;"></div>
+      <div class="chart-fill {{ cat }}" style="width:{{ ((val / max_val) * 100)|round(1) }}%;"></div>
     </div>
     <span class="chart-value">£{{ "%.2f"|format(val) }}/mo</span>
   </div>
@@ -437,9 +548,9 @@
   {% set type_max = type_totals.values()|max %}
   {% for t, val in type_totals.items()|sort(attribute='1', reverse=True) %}
   <div class="chart-bar-row">
-    <span class="badge {{ t }} chart-label">{{ t }}</span>
+    <span class="type-tag {{ t }} chart-label" style="text-align:right;width:6rem;">{{ t }}</span>
     <div class="chart-track">
-      <div class="chart-fill badge {{ t }}" style="width:{{ ((val / type_max) * 100)|round(1) }}%;border-radius:4px;"></div>
+      <div class="chart-fill {{ t }}" style="width:{{ ((val / type_max) * 100)|round(1) }}%;"></div>
     </div>
     <span class="chart-value">£{{ "%.2f"|format(val) }}/mo</span>
   </div>
