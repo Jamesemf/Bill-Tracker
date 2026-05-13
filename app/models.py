@@ -159,7 +159,7 @@ def overdue_bill_ids(conn: sqlite3.Connection, paid_this_month: set[int]) -> set
     today = date.today()
     overdue: set[int] = set()
     rows = conn.execute(
-        "SELECT * FROM bills WHERE active = 1 AND frequency IN ('monthly', 'weekly')"
+        "SELECT * FROM bills WHERE active = 1 AND auto_pay = 0 AND frequency IN ('monthly', 'weekly')"
     ).fetchall()
     for row in rows:
         if row["id"] in paid_this_month:

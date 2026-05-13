@@ -272,8 +272,9 @@
       {% for member in categories %}
       {% if member in cat_totals %}
       <div class="card card-sm">
-        <div class="label"><span class="member-chip {{ member }}">{{ member }}</span></div>
+        <div class="label"><span class="member-chip {{ member }}">{{ member | title }}</span></div>
         <div class="value">£{{ "%.2f"|format(cat_totals[member]) }}</div>
+        <div style="font-size:0.65rem;color:var(--text-muted);margin-top:0.15rem;">per month</div>
       </div>
       {% endif %}
       {% endfor %}
@@ -306,7 +307,7 @@
   <span style="min-width:5rem;">Member:</span>
   <button class="filter-btn active" data-filter-member="all" onclick="filterMember('all')">All</button>
   {% for c in categories %}
-  <button class="filter-btn" data-filter-member="{{ c }}" onclick="filterMember('{{ c }}')"><span class="member-chip {{ c }}">{{ c }}</span></button>
+  <button class="filter-btn" data-filter-member="{{ c }}" onclick="filterMember('{{ c }}')"><span class="member-chip {{ c }}">{{ c | title }}</span></button>
   {% endfor %}
 </div>
 <div class="filter-bar" style="margin-top:0.4rem;">
@@ -359,7 +360,7 @@
         {% endif %}
       </td>
       <td>{{ b.frequency }}</td>
-      <td data-val="{{ b.category }}"><span class="member-chip {{ b.category }}">{{ b.category }}</span></td>
+      <td data-val="{{ b.category }}"><span class="member-chip {{ b.category }}">{{ b.category | title }}</span></td>
       <td data-val="{{ b.bill_type }}"><span class="type-tag {{ b.bill_type }}">{{ b.bill_type }}</span></td>
       <td class="col-notes" style="color:var(--text-muted);font-size:0.8rem;max-width:12rem;">{{ b.notes or '' }}</td>
       <td>
@@ -532,7 +533,7 @@
   {% set max_val = cat_totals.values()|max %}
   {% for cat, val in cat_totals.items()|sort(attribute='1', reverse=True) %}
   <div class="chart-bar-row">
-    <span class="member-chip {{ cat }} chart-label" style="justify-content:flex-end;">{{ cat }}</span>
+    <span class="member-chip {{ cat }} chart-label" style="justify-content:flex-end;">{{ cat | title }}</span>
     <div class="chart-track">
       <div class="chart-fill {{ cat }}" style="width:{{ ((val / max_val) * 100)|round(1) }}%;"></div>
     </div>
