@@ -1,0 +1,16 @@
+[Unit]
+Description=Bill & Subscription Tracker
+After=network.target
+
+[Service]
+Type=simple
+User=pi
+WorkingDirectory=/home/pi/bill_tracker
+ExecStart=/home/pi/bill_tracker/venv/bin/python -m app.main
+Restart=on-failure
+RestartSec=10
+Environment=NTFY_TOPIC=your-topic-here
+Environment=ALERT_DAYS_BEFORE=3
+
+[Install]
+WantedBy=multi-user.target

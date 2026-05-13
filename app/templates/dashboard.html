@@ -1,0 +1,570 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="refresh" content="60" id="auto-refresh">
+  <title>Bill Tracker</title>
+  <style>
+    :root {
+      --bg:           #0f1117;
+      --surface:      #1e2330;
+      --surface2:     #1a2235;
+      --border:       #2d3748;
+      --text:         #e2e8f0;
+      --text-muted:   #64748b;
+      --text-sub:     #94a3b8;
+      --green:        #34d399;
+      --amber:        #fbbf24;
+      --blue:         #60a5fa;
+      --alert-bg:     #422006;
+      --alert-border: #92400e;
+      --alert-text:   #fcd34d;
+      --input-bg:     #0f1117;
+    }
+    body.light {
+      --bg:           #f8fafc;
+      --surface:      #ffffff;
+      --surface2:     #f1f5f9;
+      --border:       #cbd5e1;
+      --text:         #0f172a;
+      --text-muted:   #64748b;
+      --text-sub:     #475569;
+      --green:        #059669;
+      --amber:        #d97706;
+      --blue:         #2563eb;
+      --alert-bg:     #fef3c7;
+      --alert-border: #f59e0b;
+      --alert-text:   #92400e;
+      --input-bg:     #f8fafc;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: system-ui, sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; padding: 2rem; }
+
+    h1 { font-size: 1.6rem; font-weight: 700; margin-bottom: 0.25rem; }
+    h2 { font-size: 1rem; font-weight: 600; color: var(--text-sub); margin: 1.5rem 0 0.75rem; text-transform: uppercase; letter-spacing: 0.05em; }
+
+    .header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 1.5rem; flex-wrap: wrap; gap: 1rem; }
+    .header-right { display: flex; align-items: flex-start; gap: 1rem; flex-wrap: wrap; }
+    .header-actions { display: flex; flex-direction: column; gap: 0.5rem; align-items: flex-end; }
+
+    .stat-cards { display: flex; gap: 1rem; flex-wrap: wrap; }
+    .card { background: var(--surface); border-radius: 10px; padding: 1rem 1.5rem; min-width: 150px; }
+    .card .label { font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; }
+    .card .value { font-size: 1.8rem; font-weight: 700; margin-top: 0.25rem; }
+    .card .value.green { color: var(--green); }
+    .card .value.amber { color: var(--amber); }
+
+    .alert-banner { background: var(--alert-bg); border: 1px solid var(--alert-border); border-radius: 8px; padding: 0.75rem 1rem; margin-bottom: 1rem; }
+    .alert-banner p { font-size: 0.9rem; color: var(--alert-text); margin: 0.2rem 0; }
+
+    .filter-bar { display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; margin-bottom: 0.75rem; }
+    .filter-bar span { font-size: 0.75rem; color: var(--text-muted); }
+    .filter-btn { background: none; border: 1px solid var(--border); border-radius: 999px; cursor: pointer; padding: 0.2rem 0.6rem; font-size: 0.75rem; color: var(--text-sub); }
+    .filter-btn:hover { border-color: var(--blue); color: var(--text); }
+    .filter-btn.active { border-color: var(--blue); color: var(--blue); }
+
+    .table-wrap { overflow-x: auto; }
+    table { width: 100%; border-collapse: collapse; font-size: 0.875rem; }
+    th { text-align: left; padding: 0.5rem 0.75rem; color: var(--text-muted); font-weight: 500; border-bottom: 1px solid var(--border); white-space: nowrap; }
+    td { padding: 0.6rem 0.75rem; border-bottom: 1px solid var(--surface2); vertical-align: middle; }
+    tr:hover td { background: var(--surface2); }
+    tr.inactive td { opacity: 0.4; }
+
+    .sortable { cursor: pointer; user-select: none; }
+    .sortable:hover { color: var(--text); }
+    .sortable::after { content: ' \2195'; font-size: 0.65rem; color: var(--text-muted); }
+    .sortable.asc::after  { content: ' \2191'; color: var(--blue); }
+    .sortable.desc::after { content: ' \2193'; color: var(--blue); }
+
+    .badge { display: inline-block; padding: 0.15rem 0.5rem; border-radius: 999px; font-size: 0.7rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; }
+    .badge.james    { background: #1e3a5f; color: #60a5fa; }
+    .badge.chris    { background: #14532d; color: #4ade80; }
+    .badge.sophia   { background: #3b1f6e; color: #c084fc; }
+    .badge.daniel   { background: #3d2a06; color: #fbbf24; }
+    .badge.caroline { background: #4c1d1d; color: #f87171; }
+    .badge.overdue  { background: #7f1d1d; color: #fca5a5; }
+
+    .actions { display: flex; flex-wrap: wrap; gap: 0.4rem; align-items: center; }
+
+    .btn { display: inline-block; padding: 0.3rem 0.7rem; border: none; border-radius: 6px; cursor: pointer; font-size: 0.8rem; font-weight: 500; }
+    .btn-pay  { background: #065f46; color: #d1fae5; }
+    .btn-pay:hover  { background: #047857; }
+    .btn-edit { background: #2d3748; color: var(--text); }
+    .btn-edit:hover { background: #374151; }
+    .btn-tog  { background: #1e3a5f; color: #bfdbfe; }
+    .btn-tog:hover  { background: #1d4ed8; }
+    .btn-del  { background: #4c1d1d; color: #fecaca; }
+    .btn-del:hover  { background: #991b1b; }
+    .btn-add  { background: #1d4ed8; color: #fff; padding: 0.5rem 1.2rem; font-size: 0.9rem; }
+    .btn-add:hover  { background: #2563eb; }
+    .btn-sm   { padding: 0.2rem 0.5rem; font-size: 0.75rem; }
+
+    .amount-input {
+      width: 5.5rem; background: var(--input-bg); border: 1px solid var(--border);
+      border-radius: 6px; color: var(--text); padding: 0.25rem 0.4rem; font-size: 0.8rem;
+    }
+
+    .bill-form { background: var(--surface); border-radius: 10px; padding: 1.25rem; margin-top: 0.5rem; display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 0.75rem; }
+    .bill-form label { font-size: 0.75rem; color: var(--text-sub); display: block; margin-bottom: 0.25rem; }
+    .bill-form input, .bill-form select, .bill-form textarea {
+      width: 100%; background: var(--input-bg); border: 1px solid var(--border); border-radius: 6px;
+      color: var(--text); padding: 0.4rem 0.6rem; font-size: 0.875rem;
+    }
+    .bill-form input:focus, .bill-form select:focus { outline: none; border-color: #3b82f6; }
+    .bill-form .full { grid-column: 1 / -1; }
+    .bill-form .submit-row { grid-column: 1 / -1; display: flex; justify-content: flex-end; gap: 0.5rem; }
+
+    details summary { cursor: pointer; color: var(--blue); font-size: 0.9rem; margin-bottom: 0.5rem; }
+    details summary:hover { color: #93c5fd; }
+
+    .edit-dialog {
+      background: var(--surface); border: 1px solid var(--border); border-radius: 12px;
+      color: var(--text); padding: 1.5rem; width: min(600px, 95vw);
+      max-height: 90vh; overflow-y: auto;
+    }
+    .edit-dialog::backdrop { background: rgba(0,0,0,0.6); }
+    .dialog-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; }
+    .dialog-header strong { font-size: 1rem; }
+
+    .chart-bar-row { display: flex; align-items: center; gap: 0.75rem; margin-bottom: 0.5rem; }
+    .chart-label { width: 6rem; text-align: center; flex-shrink: 0; }
+    .chart-track { flex: 1; background: var(--surface2); border-radius: 4px; overflow: hidden; height: 1.25rem; }
+    .chart-fill { height: 100%; border-radius: 4px; transition: width 0.3s; }
+    .chart-value { font-size: 0.8rem; color: var(--text-sub); min-width: 5rem; text-align: right; flex-shrink: 0; }
+  </style>
+</head>
+<body>
+
+<div class="header">
+  <div>
+    <h1>Bill Tracker</h1>
+    <p style="color:var(--text-muted);font-size:0.85rem;">{{ today }}</p>
+  </div>
+  <div class="header-right">
+    <div class="stat-cards">
+      <div class="card">
+        <div class="label">Monthly est.</div>
+        <div class="value green">£{{ "%.2f"|format(monthly_total) }}</div>
+      </div>
+      <div class="card">
+        <div class="label">Annual est.</div>
+        <div class="value amber">£{{ "%.2f"|format(annual_total) }}</div>
+      </div>
+      <div class="card">
+        <div class="label">Active bills</div>
+        <div class="value">{{ bills | selectattr('active', 'equalto', 1) | list | length }}</div>
+      </div>
+    </div>
+    <div class="header-actions">
+      <button class="btn btn-tog" id="theme-toggle" onclick="toggleTheme()">Light mode</button>
+      <a href="/export/csv" class="btn btn-add" style="text-decoration:none;font-size:0.8rem;padding:0.3rem 0.7rem;">Export CSV</a>
+    </div>
+  </div>
+</div>
+
+{% if upcoming %}
+<div class="alert-banner">
+  {% for row, days in upcoming %}
+  <p>&#9888; <strong>{{ row.name }}</strong> — £{{ "%.2f"|format(row.amount) }} due {% if days == 0 %}today{% else %}in {{ days }} day{{ 's' if days != 1 else '' }}{% endif %}</p>
+  {% endfor %}
+</div>
+{% endif %}
+
+<h2>Bills</h2>
+
+<div style="margin-bottom:0.6rem;">
+  <input id="bill-search" type="search" placeholder="Search bills…"
+         oninput="searchBills(this.value)"
+         style="width:100%;max-width:320px;background:var(--input-bg);border:1px solid var(--border);
+                border-radius:6px;color:var(--text);padding:0.4rem 0.7rem;font-size:0.875rem;">
+</div>
+<div class="filter-bar">
+  <span>Filter:</span>
+  <button class="filter-btn active" data-filter="all" onclick="filterCategory('all')">All</button>
+  {% for c in categories %}
+  <button class="filter-btn" data-filter="{{ c }}" onclick="filterCategory('{{ c }}')"><span class="badge {{ c }}">{{ c }}</span></button>
+  {% endfor %}
+</div>
+
+<div class="table-wrap">
+<table id="bills-table">
+  <thead>
+    <tr>
+      <th class="sortable" data-col="0">Name</th>
+      <th class="sortable" data-col="1">Amount</th>
+      <th class="sortable" data-col="2">Next Due</th>
+      <th>Frequency</th>
+      <th class="sortable" data-col="4">Family member</th>
+      <th>Notes</th>
+      <th></th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for b in bills %}
+    <tr class="{{ 'inactive' if not b.active }}" data-cat="{{ b.category }}">
+      <td>
+        {% if b.url %}
+        <a href="{{ b.url }}" target="_blank" rel="noopener"
+           style="color:var(--text);text-decoration:none;font-weight:700;">{{ b.name }} ↗</a>
+        {% else %}
+        <strong>{{ b.name }}</strong>
+        {% endif %}
+        {% if b.auto_pay %}
+        <span class="badge" style="margin-left:0.4rem;background:#1c3351;color:#38bdf8;" title="Direct debit / auto-pay">DD</span>
+        {% endif %}
+        {% if b.id in overdue_ids %}
+        <span class="badge overdue" style="margin-left:0.4rem;">overdue</span>
+        {% endif %}
+      </td>
+      <td data-val="{{ b.amount }}">£{{ "%.2f"|format(b.amount) }}</td>
+      <td data-val="{{ next_dues[b.id].isoformat() if b.id in next_dues and next_dues[b.id] else ('0000' if b.frequency == 'one-off' else '9999-12-31') }}">
+        {% if b.id in next_dues and next_dues[b.id] %}
+          {{ next_dues[b.id] | due_date }}
+        {% elif b.frequency == 'one-off' %}
+          one-off
+        {% else %}
+          &mdash;
+        {% endif %}
+      </td>
+      <td>{{ b.frequency }}</td>
+      <td data-val="{{ b.category }}"><span class="badge {{ b.category }}">{{ b.category }}</span></td>
+      <td style="color:var(--text-muted);font-size:0.8rem;max-width:12rem;">{{ b.notes or '' }}</td>
+      <td>
+        <div class="actions">
+          {% if b.active %}
+            {% if b.id in paid_this_month %}
+            <span class="btn btn-pay" style="opacity:0.6;cursor:default;">Paid &#10003;</span>
+            {% elif b.auto_pay %}
+            <span class="btn btn-tog" style="opacity:0.6;cursor:default;" title="Will be logged automatically on due date">Auto &#10003;</span>
+            {% else %}
+            <form method="post" action="/bills/{{ b.id }}/pay" style="display:flex;gap:0.3rem;align-items:center;">
+              <input type="number" name="amount_paid" step="0.01" min="0"
+                     value="{{ '%.2f'|format(b.amount) }}" class="amount-input">
+              <button type="button" class="btn btn-pay"
+                      onclick="submitPay(this, '{{ b.name }}')">Paid</button>
+            </form>
+            {% endif %}
+          {% endif %}
+          <button class="btn btn-edit"
+                  onclick="openEdit({{ b.id }})">Edit</button>
+          <form method="post" action="/bills/{{ b.id }}/toggle">
+            <button class="btn btn-tog">{{ 'Disable' if b.active else 'Enable' }}</button>
+          </form>
+          <form method="post" action="/bills/{{ b.id }}/delete"
+                onsubmit="return confirm('Delete {{ b.name }}?')">
+            <button class="btn btn-del">Delete</button>
+          </form>
+        </div>
+      </td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+</div>
+
+{# Edit dialogs — one per bill #}
+{% for b in bills %}
+<dialog id="edit-{{ b.id }}" class="edit-dialog">
+  <div class="dialog-header">
+    <strong>Edit bill</strong>
+    <button type="button" class="btn btn-del btn-sm"
+            onclick="document.getElementById('edit-{{ b.id }}').close()">&#10005;</button>
+  </div>
+  <form method="post" action="/bills/{{ b.id }}/edit" class="bill-form" style="padding:0;background:none;">
+    <div>
+      <label>Name</label>
+      <input name="name" required value="{{ b.name }}">
+    </div>
+    <div>
+      <label>Amount (£)</label>
+      <input name="amount" type="number" step="0.01" min="0" required value="{{ '%.2f'|format(b.amount) }}">
+    </div>
+    <div>
+      <label class="due-label">{{ 'Day of week' if b.frequency == 'weekly' else 'Due day of month' }}</label>
+      <input name="due_day" type="number" min="1" max="31" value="{{ b.due_day }}"
+             class="due-day-number" {% if b.frequency == 'weekly' %}style="display:none" disabled{% endif %}>
+      <select name="due_day" class="due-day-weekday"
+              {% if b.frequency != 'weekly' %}style="display:none" disabled{% endif %}>
+        {% for wd in weekdays %}
+        <option value="{{ loop.index0 }}" {{ 'selected' if b.due_day == loop.index0 }}>{{ wd }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div>
+      <label>Frequency</label>
+      <select name="frequency" class="freq-select">
+        {% for f in frequencies %}
+        <option value="{{ f }}" {{ 'selected' if b.frequency == f }}>{{ f }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div>
+      <label>Category</label>
+      <select name="category">
+        {% for c in categories %}
+        <option value="{{ c }}" {{ 'selected' if b.category == c }}>{{ c }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="full">
+      <label>Notes</label>
+      <input name="notes" value="{{ b.notes or '' }}">
+    </div>
+    <div class="full">
+      <label>URL (billing portal)</label>
+      <input name="url" type="url" value="{{ b.url or '' }}" placeholder="https://…">
+    </div>
+    <div class="full" style="display:flex;align-items:center;gap:0.5rem;">
+      <input type="checkbox" name="auto_pay" value="1" id="auto-pay-{{ b.id }}"
+             style="width:auto;" {{ 'checked' if b.auto_pay }}>
+      <label for="auto-pay-{{ b.id }}" style="margin:0;font-size:0.875rem;color:var(--text);">Direct debit / auto-pay</label>
+    </div>
+    <div class="submit-row">
+      <button type="button" class="btn btn-tog"
+              onclick="document.getElementById('edit-{{ b.id }}').close()">Cancel</button>
+      <button type="submit" class="btn btn-add">Save changes</button>
+    </div>
+  </form>
+</dialog>
+{% endfor %}
+
+<details style="margin-top:1.5rem;">
+  <summary>+ Add a bill</summary>
+  <form method="post" action="/bills/add" class="bill-form">
+    <div>
+      <label>Name</label>
+      <input name="name" required placeholder="Netflix">
+    </div>
+    <div>
+      <label>Amount (£)</label>
+      <input name="amount" type="number" step="0.01" min="0" required placeholder="9.99">
+    </div>
+    <div>
+      <label class="due-label">Due day of month</label>
+      <input name="due_day" type="number" min="1" max="31" required placeholder="1"
+             class="due-day-number">
+      <select name="due_day" class="due-day-weekday" style="display:none" disabled>
+        {% for wd in weekdays %}
+        <option value="{{ loop.index0 }}">{{ wd }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div>
+      <label>Frequency</label>
+      <select name="frequency" class="freq-select">
+        {% for f in frequencies %}<option value="{{ f }}">{{ f }}</option>{% endfor %}
+      </select>
+    </div>
+    <div>
+      <label>Category</label>
+      <select name="category">
+        {% for c in categories %}<option value="{{ c }}">{{ c }}</option>{% endfor %}
+      </select>
+    </div>
+    <div class="full">
+      <label>Notes</label>
+      <input name="notes" placeholder="Optional notes">
+    </div>
+    <div class="full">
+      <label>URL (billing portal)</label>
+      <input name="url" type="url" placeholder="https://…">
+    </div>
+    <div class="full" style="display:flex;align-items:center;gap:0.5rem;">
+      <input type="checkbox" name="auto_pay" value="1" id="add-auto-pay" style="width:auto;">
+      <label for="add-auto-pay" style="margin:0;font-size:0.875rem;color:var(--text);">Direct debit / auto-pay (payment logged automatically on due date)</label>
+    </div>
+    <div class="submit-row">
+      <button type="submit" class="btn btn-add">Add Bill</button>
+    </div>
+  </form>
+</details>
+
+{% if cat_totals %}
+<h2>Monthly spend by family member</h2>
+<div style="background:var(--surface);border-radius:10px;padding:1rem 1.25rem;">
+  {% set max_val = cat_totals.values()|max %}
+  {% for cat, val in cat_totals.items()|sort(attribute='1', reverse=True) %}
+  <div class="chart-bar-row">
+    <span class="badge {{ cat }} chart-label">{{ cat }}</span>
+    <div class="chart-track">
+      <div class="chart-fill badge {{ cat }}"
+           style="width:{{ ((val / max_val) * 100)|round(1) }}%;border-radius:4px;"></div>
+    </div>
+    <span class="chart-value">£{{ "%.2f"|format(val) }}/mo</span>
+  </div>
+  {% endfor %}
+</div>
+{% endif %}
+
+{% if spending_trends %}
+<h2>Spending trends</h2>
+<div style="background:var(--surface);border-radius:10px;padding:1rem 1.25rem;">
+  {% set trend_max = spending_trends | map(attribute=1) | max %}
+  <div style="display:flex;align-items:flex-end;gap:0.4rem;height:8rem;overflow-x:auto;padding-bottom:0.5rem;">
+    {% for label, total in spending_trends %}
+    <div style="display:flex;flex-direction:column;align-items:center;gap:0.3rem;min-width:3rem;flex:1;">
+      <span style="font-size:0.65rem;color:var(--text-muted);">£{{ "%.0f"|format(total) }}</span>
+      <div style="width:100%;background:#1d4ed8;border-radius:4px 4px 0 0;
+                  height:{{ ((total / trend_max) * 6.5)|round(2) }}rem;
+                  min-height:0.2rem;transition:height 0.3s;"></div>
+      <span style="font-size:0.65rem;color:var(--text-muted);white-space:nowrap;">{{ label }}</span>
+    </div>
+    {% endfor %}
+  </div>
+</div>
+{% endif %}
+
+{% if history %}
+<h2>Recent payments</h2>
+<div class="table-wrap">
+<table>
+  <thead>
+    <tr><th>Bill</th><th>Date</th><th>Amount paid</th><th></th></tr>
+  </thead>
+  <tbody>
+    {% for h in history %}
+    <tr>
+      <td>{{ h.name }}</td>
+      <td style="color:var(--text-muted);">{{ h.paid_date }}</td>
+      <td>£{{ "%.2f"|format(h.amount_paid) }}</td>
+      <td>
+        <form method="post" action="/payments/{{ h.id }}/delete"
+              onsubmit="return confirm('Remove this payment record?')">
+          <button class="btn btn-del btn-sm">&#10005;</button>
+        </form>
+      </td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+</div>
+{% endif %}
+
+<script>
+// --- Theme toggle ---
+function toggleTheme() {
+  var isLight = document.body.classList.toggle('light');
+  localStorage.setItem('theme', isLight ? 'light' : 'dark');
+  document.getElementById('theme-toggle').textContent = isLight ? 'Dark mode' : 'Light mode';
+}
+(function () {
+  if (localStorage.getItem('theme') === 'light') {
+    document.body.classList.add('light');
+    var btn = document.getElementById('theme-toggle');
+    if (btn) btn.textContent = 'Dark mode';
+  }
+})();
+
+// --- Paid confirmation ---
+function submitPay(btn, name) {
+  var form = btn.closest('form');
+  var amt = form.querySelector('input[name="amount_paid"]').value;
+  if (confirm('Mark ' + name + ' as paid for £' + parseFloat(amt).toFixed(2) + '?')) {
+    form.submit();
+  }
+}
+
+// --- Open edit dialog ---
+function openEdit(id) {
+  var dlg = document.getElementById('edit-' + id);
+  if (dlg) {
+    dlg.showModal();
+    suppressRefresh();
+  }
+}
+
+// --- Suppress auto-refresh while a dialog is open ---
+function suppressRefresh() {
+  var meta = document.getElementById('auto-refresh');
+  if (meta) meta.remove();
+}
+document.querySelectorAll('dialog').forEach(function(dlg) {
+  dlg.addEventListener('cancel', function() {});
+});
+
+// --- Search ---
+var _activeFilter = 'all';
+function searchBills(term) {
+  var q = term.toLowerCase();
+  document.querySelectorAll('#bills-table tbody tr').forEach(function(tr) {
+    var name = tr.cells[0].textContent.toLowerCase();
+    var catOk = (_activeFilter === 'all' || tr.dataset.cat === _activeFilter);
+    tr.style.display = (catOk && name.includes(q)) ? '' : 'none';
+  });
+}
+
+// --- Category filter ---
+function filterCategory(cat) {
+  _activeFilter = cat;
+  document.querySelectorAll('.filter-btn').forEach(function(b) {
+    b.classList.toggle('active', b.dataset.filter === cat);
+  });
+  var q = (document.getElementById('bill-search') || {value:''}).value.toLowerCase();
+  document.querySelectorAll('#bills-table tbody tr').forEach(function(tr) {
+    var name = tr.cells[0].textContent.toLowerCase();
+    var catOk = (cat === 'all' || tr.dataset.cat === cat);
+    tr.style.display = (catOk && name.includes(q)) ? '' : 'none';
+  });
+}
+
+// --- Column sort ---
+(function () {
+  var table = document.getElementById('bills-table');
+  if (!table) return;
+  var sortCol = -1, sortDir = 1;
+  table.querySelectorAll('th.sortable').forEach(function(th) {
+    th.addEventListener('click', function() {
+      var col = parseInt(th.dataset.col);
+      if (sortCol === col) { sortDir *= -1; } else { sortCol = col; sortDir = 1; }
+      table.querySelectorAll('th.sortable').forEach(function(h) { h.classList.remove('asc', 'desc'); });
+      th.classList.add(sortDir === 1 ? 'asc' : 'desc');
+      var tbody = table.querySelector('tbody');
+      var rows = Array.from(tbody.querySelectorAll('tr'));
+      rows.sort(function(a, b) {
+        var aCell = a.cells[col], bCell = b.cells[col];
+        var aVal = (aCell.dataset.val !== undefined) ? aCell.dataset.val : aCell.textContent.trim();
+        var bVal = (bCell.dataset.val !== undefined) ? bCell.dataset.val : bCell.textContent.trim();
+        var aNum = parseFloat(aVal), bNum = parseFloat(bVal);
+        var cmp = (!isNaN(aNum) && !isNaN(bNum)) ? (aNum - bNum) : aVal.localeCompare(bVal);
+        return cmp * sortDir;
+      });
+      rows.forEach(function(r) { tbody.appendChild(r); });
+    });
+  });
+})();
+
+// --- Weekday vs day-of-month toggle ---
+function updateDueField(selectEl) {
+  var isWeekly = selectEl.value === 'weekly';
+  var container = selectEl.closest('dialog') || selectEl.closest('form') || document;
+  var numInput = container.querySelector('.due-day-number');
+  var wdSelect = container.querySelector('.due-day-weekday');
+  var label = container.querySelector('.due-label');
+  if (!numInput || !wdSelect) return;
+  if (isWeekly) {
+    numInput.style.display = 'none'; numInput.disabled = true;
+    wdSelect.style.display = ''; wdSelect.disabled = false;
+    if (label) label.textContent = 'Day of week';
+  } else {
+    numInput.style.display = ''; numInput.disabled = false;
+    wdSelect.style.display = 'none'; wdSelect.disabled = true;
+    if (label) label.textContent = 'Due day of month';
+  }
+}
+document.querySelectorAll('.freq-select').forEach(function(sel) {
+  sel.addEventListener('change', function() { updateDueField(sel); });
+});
+
+// --- Auto-open edit dialog (server-side trigger) ---
+{% if edit_bill_id is defined %}
+(function() {
+  var dlg = document.getElementById('edit-{{ edit_bill_id }}');
+  if (dlg) { dlg.showModal(); suppressRefresh(); }
+})();
+{% endif %}
+</script>
+
+</body>
+</html>
