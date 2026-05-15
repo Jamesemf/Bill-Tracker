@@ -7,7 +7,7 @@ from pathlib import Path
 DB_PATH = Path(__file__).parent.parent / "bills.db"
 
 FREQUENCIES = ("weekly", "monthly", "quarterly", "annual", "one-off")
-CATEGORIES = ("james", "chris", "sophia", "daniel", "caroline")
+CATEGORIES = ("james", "chris", "sophia", "daniel", "caroline", "family")
 BILL_TYPES = ("utilities", "streaming", "health", "wellness", "insurance", "education", "software", "finance", "other")
 
 

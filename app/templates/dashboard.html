@@ -110,6 +110,7 @@
     .member-chip.sophia::before  { background: #a78bfa; }
     .member-chip.daniel::before  { background: #fbbf24; }
     .member-chip.caroline::before{ background: #fb7185; }
+    .member-chip.family::before  { background: #e879f9; }
 
     /* Type tag — subtle tinted bordered pill */
     .type-tag { display: inline-block; padding: 0.18rem 0.55rem; border-radius: 5px;
@@ -133,6 +134,7 @@
     .badge.sophia   { background: #5b21b6; color: #ddd6fe; }
     .badge.daniel   { background: #b45309; color: #fde68a; }
     .badge.caroline { background: #9f1239; color: #fecdd3; }
+    .badge.family   { background: #701a75; color: #f5d0fe; }
     .badge.overdue  { background: #7f1d1d; color: #fca5a5; }
     .badge.utilities  { background: #0e7490; color: #cffafe; }
     .badge.streaming  { background: #4c1d95; color: #ede9fe; }
@@ -150,6 +152,7 @@
     .chart-fill.sophia   { background: #7c3aed; }
     .chart-fill.daniel   { background: #d97706; }
     .chart-fill.caroline { background: #e11d48; }
+    .chart-fill.family   { background: #c026d3; }
     .chart-fill.utilities  { background: #0891b2; }
     .chart-fill.streaming  { background: #6d28d9; }
     .chart-fill.health     { background: #059669; }
@@ -256,11 +259,11 @@
     <div class="stat-cards">
       <div class="card">
         <div class="label">Monthly est.</div>
-        <div class="value green">£{{ "%.2f"|format(monthly_total) }}</div>
+        <div class="value green" id="stat-monthly">£{{ "%.2f"|format(monthly_total) }}</div>
       </div>
       <div class="card">
         <div class="label">Annual est.</div>
-        <div class="value amber">£{{ "%.2f"|format(annual_total) }}</div>
+        <div class="value amber" id="stat-annual">£{{ "%.2f"|format(annual_total) }}</div>
       </div>
       <div class="card">
         <div class="label">Active bills</div>
@@ -334,7 +337,8 @@
   </thead>
   <tbody>
     {% for b in bills %}
-    <tr class="{{ 'inactive' if not b.active }}" data-cat="{{ b.category }}" data-type="{{ b.bill_type }}">
+    <tr class="{{ 'inactive' if not b.active }}" data-cat="{{ b.category }}" data-type="{{ b.bill_type }}"
+        data-monthly="{% if b.active %}{% if b.frequency == 'weekly' %}{{ (b.amount * 52 / 12)|round(4) }}{% elif b.frequency == 'monthly' %}{{ b.amount }}{% elif b.frequency == 'quarterly' %}{{ (b.amount / 3)|round(4) }}{% elif b.frequency == 'annual' %}{{ (b.amount / 12)|round(4) }}{% else %}0{% endif %}{% else %}0{% endif %}">
       <td>
         {% if b.url %}
         <a href="{{ b.url }}" target="_blank" rel="noopener"
@@ -657,6 +661,21 @@ function _applyFilters() {
     var typeOk   = (_activeType   === 'all' || tr.dataset.type === _activeType);
     tr.style.display = (memberOk && typeOk && name.includes(q)) ? '' : 'none';
   });
+  _updateTotals();
+}
+
+function _updateTotals() {
+  var total = 0;
+  document.querySelectorAll('#bills-table tbody tr').forEach(function(tr) {
+    if (tr.style.display !== 'none' && !tr.classList.contains('inactive')) {
+      total += parseFloat(tr.dataset.monthly || 0);
+    }
+  });
+  total = Math.round(total * 100) / 100;
+  var mEl = document.getElementById('stat-monthly');
+  var aEl = document.getElementById('stat-annual');
+  if (mEl) mEl.textContent = '£' + total.toFixed(2);
+  if (aEl) aEl.textContent = '£' + (Math.round(total * 1200) / 100).toFixed(2);
 }
 
 function searchBills(term) { _applyFilters(); }
