@@ -271,19 +271,6 @@
         <div class="value">{{ bills | selectattr('active', 'equalto', 1) | list | length }}</div>
       </div>
     </div>
-    {% if cat_totals %}
-    <div class="stat-cards" style="margin-top:0.5rem;">
-      {% for member in categories %}
-      {% if member in cat_totals %}
-      <div class="card card-sm">
-        <div class="label"><span class="member-chip {{ member }}">{{ member | title }}</span></div>
-        <div class="value">£{{ "%.2f"|format(cat_totals[member]) }}</div>
-        <div style="font-size:0.65rem;color:var(--text-muted);margin-top:0.15rem;">per month</div>
-      </div>
-      {% endif %}
-      {% endfor %}
-    </div>
-    {% endif %}
     <div class="header-actions">
       <button class="btn btn-tog" id="theme-toggle" onclick="toggleTheme()">Light mode</button>
       <a href="/export/csv" class="btn btn-add" style="text-decoration:none;font-size:0.8rem;padding:0.3rem 0.7rem;">Export CSV</a>
@@ -586,13 +573,13 @@
 {% if history %}
 <h2>Recent payments</h2>
 <div class="table-wrap">
-<table>
+<table id="history-table">
   <thead>
     <tr><th>Bill</th><th>Date</th><th>Amount paid</th><th></th></tr>
   </thead>
   <tbody>
     {% for h in history %}
-    <tr>
+    <tr data-cat="{{ h.category }}">
       <td>{{ h.name }}</td>
       <td style="color:var(--text-muted);">{{ h.paid_date }}</td>
       <td>£{{ "%.2f"|format(h.amount_paid) }}</td>
@@ -663,6 +650,10 @@ function _applyFilters() {
     tr.style.display = (memberOk && typeOk && name.includes(q)) ? '' : 'none';
   });
   _updateTotals();
+  document.querySelectorAll('#history-table tbody tr').forEach(function(tr) {
+    var memberOk = (_activeMember === 'all' || tr.dataset.cat === _activeMember);
+    tr.style.display = memberOk ? '' : 'none';
+  });
 }
 
 function _updateTotals() {

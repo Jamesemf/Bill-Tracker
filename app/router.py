@@ -41,7 +41,7 @@ def _dashboard_context(today: date, conn, edit_bill_id: int | None = None) -> di
         "SELECT * FROM bills ORDER BY active DESC, due_day ASC"
     ).fetchall()
     history = conn.execute(
-        "SELECT ph.*, b.name FROM payment_history ph "
+        "SELECT ph.*, b.name, b.category FROM payment_history ph "
         "JOIN bills b ON b.id = ph.bill_id "
         "ORDER BY ph.paid_date DESC LIMIT 20"
     ).fetchall()
