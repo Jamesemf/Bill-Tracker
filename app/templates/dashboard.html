@@ -520,6 +520,7 @@
 </details>
 
 {% if cat_totals %}
+<div id="member-chart-section">
 <h2>Monthly spend by family member</h2>
 <div style="background:var(--surface);border-radius:10px;padding:1rem 1.25rem;">
   {% set max_val = cat_totals.values()|max %}
@@ -532,6 +533,7 @@
     <span class="chart-value">£{{ "%.2f"|format(val) }}/mo</span>
   </div>
   {% endfor %}
+</div>
 </div>
 {% endif %}
 
@@ -551,24 +553,6 @@
 </div>
 {% endif %}
 
-{% if spending_trends %}
-<h2>Spending trends</h2>
-<div class="table-wrap">
-<table>
-  <thead>
-    <tr><th>Month</th><th>Total paid</th></tr>
-  </thead>
-  <tbody id="trends-tbody">
-    {% for label, total in spending_trends | reverse %}
-    <tr>
-      <td style="color:var(--text-muted);">{{ label }}</td>
-      <td>£{{ "%.2f"|format(total) }}</td>
-    </tr>
-    {% endfor %}
-  </tbody>
-</table>
-</div>
-{% endif %}
 
 {% if history %}
 <h2>Recent payments</h2>
@@ -597,19 +581,6 @@
 {% endif %}
 
 <script>
-// --- Trends data (server-rendered) ---
-var TRENDS_DATA = {{ trends_by_cat | tojson }};
-
-function _updateTrendsTable() {
-  var tbody = document.getElementById('trends-tbody');
-  if (!tbody) return;
-  var data = (TRENDS_DATA[_activeMember] || TRENDS_DATA['all'] || []).slice().reverse();
-  if (!data.length) { tbody.innerHTML = '<tr><td colspan="2" style="color:var(--text-muted);">No payments recorded</td></tr>'; return; }
-  tbody.innerHTML = data.map(function(r) {
-    return '<tr><td style="color:var(--text-muted);">' + r[0] + '</td><td>£' + r[1].toFixed(2) + '</td></tr>';
-  }).join('');
-}
-
 // --- Theme toggle ---
 function toggleTheme() {
   var isLight = document.body.classList.toggle('light');
@@ -667,7 +638,6 @@ function _applyFilters() {
     var memberOk = (_activeMember === 'all' || tr.dataset.cat === _activeMember);
     tr.style.display = memberOk ? '' : 'none';
   });
-  _updateTrendsTable();
 }
 
 function _updateTotals() {
@@ -691,6 +661,8 @@ function filterMember(val) {
   document.querySelectorAll('[data-filter-member]').forEach(function(b) {
     b.classList.toggle('active', b.dataset.filterMember === val);
   });
+  var memberChart = document.getElementById('member-chart-section');
+  if (memberChart) memberChart.style.display = val === 'all' ? '' : 'none';
   _applyFilters();
 }
 
