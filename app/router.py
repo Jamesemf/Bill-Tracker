@@ -18,7 +18,6 @@ from app.models import (
     monthly_total,
     next_due_date,
     overdue_bill_ids,
-    type_monthly_totals,
 )
 
 templates = Jinja2Templates(directory=Path(__file__).parent / "templates")
@@ -60,7 +59,6 @@ def _dashboard_context(today: date, conn, edit_bill_id: int | None = None) -> di
     ).fetchall()
     paid_this_month = {r["bill_id"] for r in paid_rows}
     overdue = overdue_bill_ids(conn, paid_this_month)
-    type_totals = type_monthly_totals(conn)
     ctx = {
         "bills": bills,
         "history": history,
@@ -71,7 +69,6 @@ def _dashboard_context(today: date, conn, edit_bill_id: int | None = None) -> di
         "next_dues": next_dues,
         "paid_this_month": paid_this_month,
         "overdue_ids": overdue,
-        "type_totals": type_totals,
         "bill_types": BILL_TYPES,
         "frequencies": FREQUENCIES,
         "categories": CATEGORIES,

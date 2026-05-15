@@ -537,21 +537,8 @@
 </div>
 {% endif %}
 
-{% if type_totals %}
 <h2>Monthly spend by type</h2>
-<div id="type-chart-container" style="background:var(--surface);border-radius:10px;padding:1rem 1.25rem;margin-bottom:1rem;">
-  {% set type_max = type_totals.values()|max %}
-  {% for t, val in type_totals.items()|sort(attribute='1', reverse=True) %}
-  <div class="chart-bar-row">
-    <span class="type-tag {{ t }} chart-label" style="text-align:right;width:6rem;">{{ t }}</span>
-    <div class="chart-track">
-      <div class="chart-fill {{ t }}" style="width:{{ ((val / type_max) * 100)|round(1) }}%;"></div>
-    </div>
-    <span class="chart-value">£{{ "%.2f"|format(val) }}/mo</span>
-  </div>
-  {% endfor %}
-</div>
-{% endif %}
+<div id="type-chart-container" style="background:var(--surface);border-radius:10px;padding:1rem 1.25rem;margin-bottom:1rem;"></div>
 
 
 {% if history %}
@@ -752,6 +739,9 @@ document.querySelectorAll('.freq-select').forEach(function(sel) {
   if (dlg) { dlg.showModal(); suppressRefresh(); }
 })();
 {% endif %}
+
+// Populate type chart on initial load
+_updateTypeChart();
 </script>
 
 </body>
