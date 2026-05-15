@@ -558,7 +558,7 @@
   <thead>
     <tr><th>Month</th><th>Total paid</th></tr>
   </thead>
-  <tbody>
+  <tbody id="trends-tbody">
     {% for label, total in spending_trends | reverse %}
     <tr>
       <td style="color:var(--text-muted);">{{ label }}</td>
@@ -597,6 +597,19 @@
 {% endif %}
 
 <script>
+// --- Trends data (server-rendered) ---
+var TRENDS_DATA = {{ trends_by_cat | tojson }};
+
+function _updateTrendsTable() {
+  var tbody = document.getElementById('trends-tbody');
+  if (!tbody) return;
+  var data = (TRENDS_DATA[_activeMember] || TRENDS_DATA['all'] || []).slice().reverse();
+  if (!data.length) { tbody.innerHTML = '<tr><td colspan="2" style="color:var(--text-muted);">No payments recorded</td></tr>'; return; }
+  tbody.innerHTML = data.map(function(r) {
+    return '<tr><td style="color:var(--text-muted);">' + r[0] + '</td><td>£' + r[1].toFixed(2) + '</td></tr>';
+  }).join('');
+}
+
 // --- Theme toggle ---
 function toggleTheme() {
   var isLight = document.body.classList.toggle('light');
@@ -654,6 +667,7 @@ function _applyFilters() {
     var memberOk = (_activeMember === 'all' || tr.dataset.cat === _activeMember);
     tr.style.display = memberOk ? '' : 'none';
   });
+  _updateTrendsTable();
 }
 
 function _updateTotals() {

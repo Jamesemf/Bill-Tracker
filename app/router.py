@@ -19,6 +19,7 @@ from app.models import (
     next_due_date,
     overdue_bill_ids,
     spending_trends,
+    spending_trends_by_category,
     type_monthly_totals,
 )
 
@@ -62,6 +63,7 @@ def _dashboard_context(today: date, conn, edit_bill_id: int | None = None) -> di
     paid_this_month = {r["bill_id"] for r in paid_rows}
     overdue = overdue_bill_ids(conn, paid_this_month)
     trends = spending_trends(conn)
+    trends_by_cat = spending_trends_by_category(conn)
     type_totals = type_monthly_totals(conn)
     ctx = {
         "bills": bills,
@@ -74,6 +76,7 @@ def _dashboard_context(today: date, conn, edit_bill_id: int | None = None) -> di
         "paid_this_month": paid_this_month,
         "overdue_ids": overdue,
         "spending_trends": trends,
+        "trends_by_cat": trends_by_cat,
         "type_totals": type_totals,
         "bill_types": BILL_TYPES,
         "frequencies": FREQUENCIES,

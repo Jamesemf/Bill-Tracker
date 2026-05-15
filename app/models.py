@@ -215,6 +215,29 @@ def spending_trends(conn: sqlite3.Connection) -> list[tuple[str, float]]:
     return result
 
 
+def spending_trends_by_category(conn: sqlite3.Connection) -> dict[str, list]:
+    """Return {category: [(label, total), ...]} including an 'all' key."""
+    from datetime import datetime as _dt
+
+    def _fetch(where: str, params: tuple) -> list:
+        rows = conn.execute(
+            f"""SELECT strftime('%Y-%m', ph.paid_date) AS month, SUM(ph.amount_paid) AS total
+                FROM payment_history ph
+                JOIN bills b ON b.id = ph.bill_id
+                {where}
+                GROUP BY month ORDER BY month ASC""",
+            params,
+        ).fetchall()
+        return [(_dt.strptime(r["month"], "%Y-%m").strftime("%b '%y"), round(r["total"], 2)) for r in rows]
+
+    result: dict[str, list] = {"all": _fetch("", ())}
+    for cat in CATEGORIES:
+        data = _fetch("WHERE b.category = ?", (cat,))
+        if data:
+            result[cat] = data
+    return result
+
+
 def category_monthly_totals(conn: sqlite3.Connection) -> dict[str, float]:
     rows = conn.execute(
         "SELECT amount, frequency, category FROM bills WHERE active = 1"
