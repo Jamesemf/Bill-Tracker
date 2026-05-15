@@ -199,6 +199,31 @@ def type_monthly_totals(conn: sqlite3.Connection) -> dict[str, float]:
     return totals
 
 
+def type_monthly_totals_by_category(conn: sqlite3.Connection) -> dict[str, dict[str, float]]:
+    """Returns {category: {bill_type: monthly_equivalent}} including an 'all' key."""
+    rows = conn.execute(
+        "SELECT amount, frequency, bill_type, category FROM bills WHERE active = 1"
+    ).fetchall()
+    result: dict[str, dict[str, float]] = {"all": {}}
+    for row in rows:
+        freq, amt = row["frequency"], row["amount"]
+        if freq == "weekly":
+            monthly = amt * 52 / 12
+        elif freq == "monthly":
+            monthly = amt
+        elif freq == "quarterly":
+            monthly = amt / 3
+        elif freq == "annual":
+            monthly = amt / 12
+        else:
+            continue
+        t, cat = row["bill_type"], row["category"]
+        result["all"][t] = round(result["all"].get(t, 0.0) + monthly, 2)
+        result.setdefault(cat, {})
+        result[cat][t] = round(result[cat].get(t, 0.0) + monthly, 2)
+    return result
+
+
 def spending_trends(conn: sqlite3.Connection) -> list[tuple[str, float]]:
     """Return (label, total) for each month that has payment history, oldest first."""
     from datetime import datetime as _dt

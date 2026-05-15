@@ -539,7 +539,7 @@
 
 {% if type_totals %}
 <h2>Monthly spend by type</h2>
-<div style="background:var(--surface);border-radius:10px;padding:1rem 1.25rem;margin-bottom:1rem;">
+<div id="type-chart-container" style="background:var(--surface);border-radius:10px;padding:1rem 1.25rem;margin-bottom:1rem;">
   {% set type_max = type_totals.values()|max %}
   {% for t, val in type_totals.items()|sort(attribute='1', reverse=True) %}
   <div class="chart-bar-row">
@@ -581,6 +581,27 @@
 {% endif %}
 
 <script>
+// --- Type chart data ---
+var TYPE_DATA = {{ type_totals_by_cat | tojson }};
+
+function _updateTypeChart() {
+  var container = document.getElementById('type-chart-container');
+  if (!container) return;
+  var data = TYPE_DATA[_activeMember] || TYPE_DATA['all'] || {};
+  var entries = Object.entries(data).sort(function(a, b) { return b[1] - a[1]; });
+  if (!entries.length) { container.innerHTML = '<p style="color:var(--text-muted);font-size:0.85rem;padding:0.5rem 0;">No data</p>'; return; }
+  var max = entries[0][1];
+  container.innerHTML = entries.map(function(e) {
+    var t = e[0], val = e[1];
+    var pct = max > 0 ? ((val / max) * 100).toFixed(1) : 0;
+    return '<div class="chart-bar-row">' +
+      '<span class="type-tag ' + t + ' chart-label" style="text-align:right;width:6rem;">' + t + '</span>' +
+      '<div class="chart-track"><div class="chart-fill ' + t + '" style="width:' + pct + '%;"></div></div>' +
+      '<span class="chart-value">£' + val.toFixed(2) + '/mo</span>' +
+      '</div>';
+  }).join('');
+}
+
 // --- Theme toggle ---
 function toggleTheme() {
   var isLight = document.body.classList.toggle('light');
@@ -663,6 +684,7 @@ function filterMember(val) {
   });
   var memberChart = document.getElementById('member-chart-section');
   if (memberChart) memberChart.style.display = val === 'all' ? '' : 'none';
+  _updateTypeChart();
   _applyFilters();
 }
 
