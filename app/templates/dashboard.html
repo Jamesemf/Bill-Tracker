@@ -684,8 +684,8 @@ function filterMember(val) {
   });
   var memberChart = document.getElementById('member-chart-section');
   if (memberChart) memberChart.style.display = val === 'all' ? '' : 'none';
-  _updateTypeChart();
   _applyFilters();
+  _updateTypeChart();
 }
 
 function filterType(val) {
