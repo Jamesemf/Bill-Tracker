@@ -25,7 +25,7 @@ async def lifespan(app: FastAPI):
         pass
 
 
-app = FastAPI(title="Bill Tracker", lifespan=lifespan)
+app = FastAPI(title=settings.app_title, lifespan=lifespan)
 app.include_router(router)
 
 

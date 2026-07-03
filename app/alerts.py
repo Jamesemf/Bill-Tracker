@@ -1,5 +1,7 @@
-import httpx
 import logging
+
+import httpx
+
 from app.config import settings
 
 logger = logging.getLogger(__name__)
@@ -12,7 +14,7 @@ async def send_alert(title: str, message: str, priority: str = "default") -> Non
     try:
         async with httpx.AsyncClient() as client:
             await client.post(
-                f"https://ntfy.sh/{settings.ntfy_topic}",
+                f"{settings.ntfy_server}/{settings.ntfy_topic}",
                 content=message,
                 headers={
                     "Title": title,
@@ -25,12 +27,15 @@ async def send_alert(title: str, message: str, priority: str = "default") -> Non
         logger.warning("Failed to send ntfy alert: %s", exc)
 
 
-async def alert_upcoming_bill(name: str, amount: float, currency: str, days_until: int) -> None:
+async def alert_upcoming_bill(name: str, amount: float, days_until: int) -> None:
     if days_until == 0:
         title = f"Bill due today: {name}"
         priority = "high"
     else:
         title = f"Bill due in {days_until} day{'s' if days_until != 1 else ''}: {name}"
         priority = "default"
-    message = f"{name} — {currency}{amount:.2f} due {'today' if days_until == 0 else f'in {days_until} days'}"
+    message = (
+        f"{name} — {settings.currency_symbol}{amount:.2f} due "
+        f"{'today' if days_until == 0 else f'in {days_until} days'}"
+    )
     await send_alert(title, message, priority)

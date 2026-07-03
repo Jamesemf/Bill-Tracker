@@ -4,11 +4,13 @@ from contextlib import contextmanager
 from datetime import date, timedelta
 from pathlib import Path
 
+from app.config import settings
+
 DB_PATH = Path(__file__).parent.parent / "bills.db"
 
 FREQUENCIES = ("weekly", "monthly", "quarterly", "annual", "one-off")
-CATEGORIES = ("james", "chris", "sophia", "daniel", "caroline", "family")
-BILL_TYPES = ("utilities", "streaming", "health", "wellness", "insurance", "education", "software", "finance", "other")
+CATEGORIES = settings.family_members
+BILL_TYPES = settings.bill_types
 
 
 def get_connection() -> sqlite3.Connection:
@@ -35,10 +37,10 @@ def init_db() -> None:
                 id          INTEGER PRIMARY KEY AUTOINCREMENT,
                 name        TEXT    NOT NULL,
                 amount      REAL    NOT NULL,
-                currency    TEXT    NOT NULL DEFAULT 'GBP',
+                currency    TEXT    NOT NULL DEFAULT '',
                 due_day     INTEGER NOT NULL,
                 frequency   TEXT    NOT NULL DEFAULT 'monthly',
-                category    TEXT    NOT NULL DEFAULT 'james',
+                category    TEXT    NOT NULL DEFAULT 'family',
                 active      INTEGER NOT NULL DEFAULT 1,
                 auto_pay    INTEGER NOT NULL DEFAULT 0,
                 bill_type   TEXT    NOT NULL DEFAULT 'other',
@@ -173,94 +175,6 @@ def overdue_bill_ids(conn: sqlite3.Connection, paid_this_month: set[int]) -> set
             if 0 < days_since < 7:
                 overdue.add(row["id"])
     return overdue
-
-
-def type_monthly_totals(conn: sqlite3.Connection) -> dict[str, float]:
-    """Returns {bill_type: monthly_equivalent} for all active bills."""
-    rows = conn.execute(
-        "SELECT amount, frequency, bill_type FROM bills WHERE active = 1"
-    ).fetchall()
-    totals: dict[str, float] = {}
-    for row in rows:
-        freq = row["frequency"]
-        amt = row["amount"]
-        if freq == "weekly":
-            monthly = amt * 52 / 12
-        elif freq == "monthly":
-            monthly = amt
-        elif freq == "quarterly":
-            monthly = amt / 3
-        elif freq == "annual":
-            monthly = amt / 12
-        else:
-            continue
-        t = row["bill_type"]
-        totals[t] = round(totals.get(t, 0.0) + monthly, 2)
-    return totals
-
-
-def type_monthly_totals_by_category(conn: sqlite3.Connection) -> dict[str, dict[str, float]]:
-    """Returns {category: {bill_type: monthly_equivalent}} including an 'all' key."""
-    rows = conn.execute(
-        "SELECT amount, frequency, bill_type, category FROM bills WHERE active = 1"
-    ).fetchall()
-    result: dict[str, dict[str, float]] = {"all": {}}
-    for row in rows:
-        freq, amt = row["frequency"], row["amount"]
-        if freq == "weekly":
-            monthly = amt * 52 / 12
-        elif freq == "monthly":
-            monthly = amt
-        elif freq == "quarterly":
-            monthly = amt / 3
-        elif freq == "annual":
-            monthly = amt / 12
-        else:
-            continue
-        t, cat = row["bill_type"], row["category"]
-        result["all"][t] = round(result["all"].get(t, 0.0) + monthly, 2)
-        result.setdefault(cat, {})
-        result[cat][t] = round(result[cat].get(t, 0.0) + monthly, 2)
-    return result
-
-
-def spending_trends(conn: sqlite3.Connection) -> list[tuple[str, float]]:
-    """Return (label, total) for each month that has payment history, oldest first."""
-    from datetime import datetime as _dt
-    rows = conn.execute(
-        """SELECT strftime('%Y-%m', paid_date) AS month, SUM(amount_paid) AS total
-           FROM payment_history
-           GROUP BY month
-           ORDER BY month ASC"""
-    ).fetchall()
-    result = []
-    for r in rows:
-        label = _dt.strptime(r["month"], "%Y-%m").strftime("%b '%y")
-        result.append((label, round(r["total"], 2)))
-    return result
-
-
-def spending_trends_by_category(conn: sqlite3.Connection) -> dict[str, list]:
-    """Return {category: [(label, total), ...]} including an 'all' key."""
-    from datetime import datetime as _dt
-
-    def _fetch(where: str, params: tuple) -> list:
-        rows = conn.execute(
-            f"""SELECT strftime('%Y-%m', ph.paid_date) AS month, SUM(ph.amount_paid) AS total
-                FROM payment_history ph
-                JOIN bills b ON b.id = ph.bill_id
-                {where}
-                GROUP BY month ORDER BY month ASC""",
-            params,
-        ).fetchall()
-        return [(_dt.strptime(r["month"], "%Y-%m").strftime("%b '%y"), round(r["total"], 2)) for r in rows]
-
-    result: dict[str, list] = {"all": _fetch("", ())}
-    for cat in CATEGORIES:
-        data = _fetch("WHERE b.category = ?", (cat,))
-        if data:
-            result[cat] = data
-    return result
 
 
 def category_monthly_totals(conn: sqlite3.Connection) -> dict[str, float]:

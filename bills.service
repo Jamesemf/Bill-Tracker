@@ -1,16 +1,18 @@
 [Unit]
-Description=Ford Family Bills
+Description=Bill Tracker
 After=network.target
 
 [Service]
 Type=simple
-User=james
-WorkingDirectory=/home/james/bill_tracker
-ExecStart=/home/james/bill_tracker/venv/bin/python -m app.main
+# Change these to match your user and install location
+User=youruser
+WorkingDirectory=/home/youruser/bill-tracker
+ExecStart=/home/youruser/bill-tracker/venv/bin/python -m app.main
 Restart=on-failure
 RestartSec=10
-Environment=NTFY_TOPIC=your-topic-here
-Environment=ALERT_DAYS_BEFORE=3
+# Configuration is read from the .env file in WorkingDirectory,
+# or set environment variables here instead:
+# Environment=NTFY_TOPIC=your-topic-here
 
 [Install]
 WantedBy=multi-user.target

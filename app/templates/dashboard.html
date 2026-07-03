@@ -4,8 +4,8 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta http-equiv="refresh" content="60" id="auto-refresh">
-  <title>Ford Family Bills</title>
-  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='7' fill='%230b0d13'/><text x='16' y='24' text-anchor='middle' font-size='22' font-family='system-ui,sans-serif' fill='%232dd4a4'>£</text></svg>">
+  <title>{{ app_title }}</title>
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='7' fill='%230b0d13'/><text x='16' y='24' text-anchor='middle' font-size='22' font-family='system-ui,sans-serif' fill='%232dd4a4'>{{ currency }}</text></svg>">
   <style>
     :root {
       --bg:           #0b0d13;
@@ -106,63 +106,25 @@
     .member-chip { display: inline-flex; align-items: center; gap: 0.45rem;
                    font-size: 0.82rem; font-weight: 500; color: var(--text-sub); }
     .member-chip::before { content: ''; width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
-    .member-chip.james::before   { background: #60a5fa; }
-    .member-chip.chris::before   { background: #34d399; }
-    .member-chip.sophia::before  { background: #a78bfa; }
-    .member-chip.daniel::before  { background: #fbbf24; }
-    .member-chip.caroline::before{ background: #fb7185; }
-    .member-chip.family::before  { background: #e879f9; }
 
     /* Type tag — subtle tinted bordered pill */
     .type-tag { display: inline-block; padding: 0.18rem 0.55rem; border-radius: 5px;
                 font-size: 0.69rem; font-weight: 500; text-transform: capitalize;
                 border: 1px solid currentColor; }
-    .type-tag.utilities  { color: #67c8e8; border-color: rgba(103,200,232,0.25); background: rgba(103,200,232,0.07); }
-    .type-tag.streaming  { color: #a78bfa; border-color: rgba(167,139,250,0.25); background: rgba(167,139,250,0.07); }
-    .type-tag.health     { color: #34d399; border-color: rgba(52,211,153,0.25);  background: rgba(52,211,153,0.07);  }
-    .type-tag.wellness   { color: #86efac; border-color: rgba(134,239,172,0.25); background: rgba(134,239,172,0.07); }
-    .type-tag.insurance  { color: #c084fc; border-color: rgba(192,132,252,0.25); background: rgba(192,132,252,0.07); }
-    .type-tag.education  { color: #fdba74; border-color: rgba(253,186,116,0.25); background: rgba(253,186,116,0.07); }
-    .type-tag.software   { color: #7dd3fc; border-color: rgba(125,211,252,0.25); background: rgba(125,211,252,0.07); }
-    .type-tag.finance    { color: #94a3b8; border-color: rgba(148,163,184,0.2);  background: rgba(148,163,184,0.06); }
-    .type-tag.other      { color: #6b7280; border-color: rgba(107,114,128,0.2);  background: rgba(107,114,128,0.06); }
 
-    /* Badge — kept for chart fills only */
     .badge { display: inline-block; padding: 0.15rem 0.5rem; border-radius: 5px;
              font-size: 0.69rem; font-weight: 500; text-transform: capitalize; }
-    .badge.james    { background: #1d4ed8; color: #bfdbfe; }
-    .badge.chris    { background: #065f46; color: #a7f3d0; }
-    .badge.sophia   { background: #5b21b6; color: #ddd6fe; }
-    .badge.daniel   { background: #b45309; color: #fde68a; }
-    .badge.caroline { background: #9f1239; color: #fecdd3; }
-    .badge.family   { background: #701a75; color: #f5d0fe; }
-    .badge.overdue  { background: #7f1d1d; color: #fca5a5; }
-    .badge.utilities  { background: #0e7490; color: #cffafe; }
-    .badge.streaming  { background: #4c1d95; color: #ede9fe; }
-    .badge.health     { background: #064e3b; color: #d1fae5; }
-    .badge.wellness   { background: #14532d; color: #dcfce7; }
-    .badge.insurance  { background: #581c87; color: #f3e8ff; }
-    .badge.education  { background: #7c2d12; color: #ffedd5; }
-    .badge.software   { background: #075985; color: #e0f2fe; }
-    .badge.finance    { background: #334155; color: #e2e8f0; }
-    .badge.other      { background: #1f2937; color: #d1d5db; }
+    .badge.overdue { background: #7f1d1d; color: #fca5a5; }
 
-    /* Chart fill — solid colours for bar charts */
-    .chart-fill.james    { background: #2563eb; }
-    .chart-fill.chris    { background: #059669; }
-    .chart-fill.sophia   { background: #7c3aed; }
-    .chart-fill.daniel   { background: #d97706; }
-    .chart-fill.caroline { background: #e11d48; }
-    .chart-fill.family   { background: #c026d3; }
-    .chart-fill.utilities  { background: #0891b2; }
-    .chart-fill.streaming  { background: #6d28d9; }
-    .chart-fill.health     { background: #059669; }
-    .chart-fill.wellness   { background: #16a34a; }
-    .chart-fill.insurance  { background: #7c3aed; }
-    .chart-fill.education  { background: #c2410c; }
-    .chart-fill.software   { background: #0284c7; }
-    .chart-fill.finance    { background: #475569; }
-    .chart-fill.other      { background: #374151; }
+    /* Member and type colours — generated from the configured lists */
+    {% for c in categories %}
+    .member-chip.{{ c }}::before { background: {{ member_colors[c] }}; }
+    .chart-fill.{{ c }} { background: {{ member_colors[c] }}; }
+    {% endfor %}
+    {% for t in bill_types %}
+    .type-tag.{{ t }} { color: {{ type_colors[t] }}; border-color: {{ type_colors[t] }}40; background: {{ type_colors[t] }}12; }
+    .chart-fill.{{ t }} { background: {{ type_colors[t] }}; }
+    {% endfor %}
 
     .actions { display: flex; flex-wrap: wrap; gap: 0.35rem; align-items: center; }
 
@@ -253,18 +215,18 @@
 
 <div class="header">
   <div>
-    <h1>Ford Family Bills</h1>
+    <h1>{{ app_title }}</h1>
     <p style="color:var(--text-muted);font-size:0.85rem;">{{ today }}</p>
   </div>
   <div class="header-right">
     <div class="stat-cards">
       <div class="card">
         <div class="label">Monthly est.</div>
-        <div class="value green" id="stat-monthly">£{{ "%.2f"|format(monthly_total) }}</div>
+        <div class="value green" id="stat-monthly">{{ currency }}{{ "%.2f"|format(monthly_total) }}</div>
       </div>
       <div class="card">
         <div class="label">Annual est.</div>
-        <div class="value amber" id="stat-annual">£{{ "%.2f"|format(annual_total) }}</div>
+        <div class="value amber" id="stat-annual">{{ currency }}{{ "%.2f"|format(annual_total) }}</div>
       </div>
       <div class="card">
         <div class="label">Active bills</div>
@@ -281,7 +243,7 @@
 {% if upcoming %}
 <div class="alert-banner">
   {% for row, days in upcoming %}
-  <p>&#9888; <strong>{{ row.name }}</strong> — £{{ "%.2f"|format(row.amount) }} due {% if days == 0 %}today{% else %}in {{ days }} day{{ 's' if days != 1 else '' }}{% endif %}</p>
+  <p>&#9888; <strong>{{ row.name }}</strong> — {{ currency }}{{ "%.2f"|format(row.amount) }} due {% if days == 0 %}today{% else %}in {{ days }} day{{ 's' if days != 1 else '' }}{% endif %}</p>
   {% endfor %}
 </div>
 {% endif %}
@@ -341,7 +303,7 @@
         <span class="badge overdue" style="margin-left:0.4rem;">overdue</span>
         {% endif %}
       </td>
-      <td data-val="{{ b.amount }}">£{{ "%.2f"|format(b.amount) }}</td>
+      <td data-val="{{ b.amount }}">{{ currency }}{{ "%.2f"|format(b.amount) }}</td>
       <td data-val="{{ next_dues[b.id].isoformat() if b.id in next_dues and next_dues[b.id] else ('0000' if b.frequency == 'one-off' else '9999-12-31') }}">
         {% if b.id in next_dues and next_dues[b.id] %}
           {{ next_dues[b.id] | due_date }}
@@ -402,7 +364,7 @@
       <input name="name" required value="{{ b.name }}">
     </div>
     <div>
-      <label>Amount (£)</label>
+      <label>Amount ({{ currency }})</label>
       <input name="amount" type="number" step="0.01" min="0" required value="{{ '%.2f'|format(b.amount) }}">
     </div>
     <div>
@@ -470,7 +432,7 @@
       <input name="name" required placeholder="Netflix">
     </div>
     <div>
-      <label>Amount (£)</label>
+      <label>Amount ({{ currency }})</label>
       <input name="amount" type="number" step="0.01" min="0" required placeholder="9.99">
     </div>
     <div>
@@ -530,7 +492,7 @@
     <div class="chart-track">
       <div class="chart-fill {{ cat }}" style="width:{{ ((val / max_val) * 100)|round(1) }}%;"></div>
     </div>
-    <span class="chart-value">£{{ "%.2f"|format(val) }}/mo</span>
+    <span class="chart-value">{{ currency }}{{ "%.2f"|format(val) }}/mo</span>
   </div>
   {% endfor %}
 </div>
@@ -553,7 +515,7 @@
     <tr data-cat="{{ h.category }}">
       <td>{{ h.name }}</td>
       <td style="color:var(--text-muted);">{{ h.paid_date }}</td>
-      <td>£{{ "%.2f"|format(h.amount_paid) }}</td>
+      <td>{{ currency }}{{ "%.2f"|format(h.amount_paid) }}</td>
       <td>
         <form method="post" action="/payments/{{ h.id }}/delete"
               onsubmit="return confirm('Remove this payment record?')">
@@ -568,6 +530,8 @@
 {% endif %}
 
 <script>
+var CURRENCY = {{ currency | tojson }};
+
 // --- Type chart (computed from visible rows) ---
 function _updateTypeChart() {
   var container = document.getElementById('type-chart-container');
@@ -586,7 +550,7 @@ function _updateTypeChart() {
     var pct = ((val / max) * 100).toFixed(1);
     return '<div class="chart-bar-row"><span class="type-tag ' + t + ' chart-label" style="text-align:right;width:6rem;">' + t + '</span>' +
       '<div class="chart-track"><div class="chart-fill ' + t + '" style="width:' + pct + '%;"></div></div>' +
-      '<span class="chart-value">£' + val.toFixed(2) + '/mo</span></div>';
+      '<span class="chart-value">' + CURRENCY + val.toFixed(2) + '/mo</span></div>';
   }).join('');
 }
 
@@ -608,7 +572,7 @@ function toggleTheme() {
 function submitPay(btn, name) {
   var form = btn.closest('form');
   var amt = form.querySelector('input[name="amount_paid"]').value;
-  if (confirm('Mark ' + name + ' as paid for £' + parseFloat(amt).toFixed(2) + '?')) {
+  if (confirm('Mark ' + name + ' as paid for ' + CURRENCY + parseFloat(amt).toFixed(2) + '?')) {
     form.submit();
   }
 }
@@ -660,8 +624,8 @@ function _updateTotals() {
   total = Math.round(total * 100) / 100;
   var mEl = document.getElementById('stat-monthly');
   var aEl = document.getElementById('stat-annual');
-  if (mEl) mEl.textContent = '£' + total.toFixed(2);
-  if (aEl) aEl.textContent = '£' + (Math.round(total * 1200) / 100).toFixed(2);
+  if (mEl) mEl.textContent = CURRENCY + total.toFixed(2);
+  if (aEl) aEl.textContent = CURRENCY + (Math.round(total * 1200) / 100).toFixed(2);
 }
 
 function searchBills(term) { _applyFilters(); }

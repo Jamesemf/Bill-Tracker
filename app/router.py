@@ -7,6 +7,7 @@ from fastapi import APIRouter, Form, HTTPException, Request
 from fastapi.responses import HTMLResponse, RedirectResponse, StreamingResponse
 from fastapi.templating import Jinja2Templates
 
+from app.config import settings
 from app.models import (
     BILL_TYPES,
     CATEGORIES,
@@ -23,6 +24,17 @@ from app.models import (
 templates = Jinja2Templates(directory=Path(__file__).parent / "templates")
 
 WEEKDAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
+
+# Colours are assigned to members/types by position, cycling if the list is
+# longer than the palette.
+MEMBER_PALETTE = ["#60a5fa", "#34d399", "#a78bfa", "#fbbf24", "#fb7185", "#e879f9", "#2dd4bf", "#f97316"]
+TYPE_PALETTE = ["#67c8e8", "#a78bfa", "#34d399", "#86efac", "#c084fc", "#fdba74", "#7dd3fc", "#94a3b8", "#6b7280", "#f472b6", "#fbbf24"]
+
+MEMBER_COLORS = {c: MEMBER_PALETTE[i % len(MEMBER_PALETTE)] for i, c in enumerate(CATEGORIES)}
+TYPE_COLORS = {t: TYPE_PALETTE[i % len(TYPE_PALETTE)] for i, t in enumerate(BILL_TYPES)}
+
+DEFAULT_CATEGORY = CATEGORIES[0]
+DEFAULT_BILL_TYPE = BILL_TYPES[-1]
 
 
 def _fmt_due(d) -> str:
@@ -73,6 +85,10 @@ def _dashboard_context(today: date, conn, edit_bill_id: int | None = None) -> di
         "frequencies": FREQUENCIES,
         "categories": CATEGORIES,
         "weekdays": WEEKDAYS,
+        "member_colors": MEMBER_COLORS,
+        "type_colors": TYPE_COLORS,
+        "app_title": settings.app_title,
+        "currency": settings.currency_symbol,
         "today": today.isoformat(),
     }
     if edit_bill_id is not None:
@@ -94,8 +110,8 @@ async def add_bill(
     amount: float = Form(...),
     due_day: int = Form(...),
     frequency: str = Form("monthly"),
-    category: str = Form("james"),
-    bill_type: str = Form("other"),
+    category: str = Form(""),
+    bill_type: str = Form(""),
     auto_pay: str = Form(default=""),
     notes: str = Form(""),
     url: str = Form(""),
@@ -103,7 +119,18 @@ async def add_bill(
     with db() as conn:
         conn.execute(
             "INSERT INTO bills (name, amount, currency, due_day, frequency, category, bill_type, auto_pay, notes, url) VALUES (?,?,?,?,?,?,?,?,?,?)",
-            (name, amount, "GBP", due_day, frequency, category, bill_type, 1 if auto_pay else 0, notes or None, url or None),
+            (
+                name,
+                amount,
+                settings.currency_symbol,
+                due_day,
+                frequency,
+                category or DEFAULT_CATEGORY,
+                bill_type or DEFAULT_BILL_TYPE,
+                1 if auto_pay else 0,
+                notes or None,
+                url or None,
+            ),
         )
     return RedirectResponse("/", status_code=303)
 
@@ -126,8 +153,8 @@ async def edit_bill(
     amount: float = Form(...),
     due_day: int = Form(...),
     frequency: str = Form("monthly"),
-    category: str = Form("james"),
-    bill_type: str = Form("other"),
+    category: str = Form(""),
+    bill_type: str = Form(""),
     auto_pay: str = Form(default=""),
     notes: str = Form(""),
     url: str = Form(""),
@@ -138,7 +165,18 @@ async def edit_bill(
             raise HTTPException(status_code=404)
         conn.execute(
             "UPDATE bills SET name=?, amount=?, due_day=?, frequency=?, category=?, bill_type=?, auto_pay=?, notes=?, url=? WHERE id=?",
-            (name, amount, due_day, frequency, category, bill_type, 1 if auto_pay else 0, notes or None, url or None, bill_id),
+            (
+                name,
+                amount,
+                due_day,
+                frequency,
+                category or DEFAULT_CATEGORY,
+                bill_type or DEFAULT_BILL_TYPE,
+                1 if auto_pay else 0,
+                notes or None,
+                url or None,
+                bill_id,
+            ),
         )
     return RedirectResponse("/", status_code=303)
 
@@ -210,8 +248,9 @@ async def export_csv():
 @router.get("/test-alert")
 async def test_alert():
     from app.alerts import send_alert
-    await send_alert("Bill Tracker test", "Alerts are working correctly.", priority="default")
-    return {"status": "sent", "topic": __import__("app.config", fromlist=["settings"]).settings.ntfy_topic}
+
+    await send_alert(f"{settings.app_title} test", "Alerts are working correctly.", priority="default")
+    return {"status": "sent", "topic": settings.ntfy_topic}
 
 
 @router.get("/api/bills")

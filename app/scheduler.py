@@ -1,6 +1,6 @@
 import asyncio
 import logging
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 
 from app.alerts import alert_upcoming_bill
 from app.config import settings
@@ -14,7 +14,7 @@ async def _check_upcoming_bills() -> None:
         upcoming = bills_due_within(conn, settings.alert_days_before)
     for row, days_until in upcoming:
         logger.info("Alerting: %s due in %d days", row["name"], days_until)
-        await alert_upcoming_bill(row["name"], row["amount"], row["currency"], days_until)
+        await alert_upcoming_bill(row["name"], row["amount"], days_until)
 
 
 async def _auto_log_payments() -> None:
@@ -36,21 +36,24 @@ async def _auto_log_payments() -> None:
                     "INSERT INTO payment_history (bill_id, amount_paid) VALUES (?, ?)",
                     (row["id"], row["amount"]),
                 )
-                logger.info("Auto-logged payment for %s (£%.2f)", row["name"], row["amount"])
+                logger.info(
+                    "Auto-logged payment for %s (%s%.2f)",
+                    row["name"], settings.currency_symbol, row["amount"],
+                )
 
 
-def _seconds_until_next_run(hour: int = 8) -> float:
+def _seconds_until_next_run(hour: int) -> float:
     now = datetime.now()
     target = now.replace(hour=hour, minute=0, second=0, microsecond=0)
     if now >= target:
-        target = target.replace(day=target.day + 1)
+        target += timedelta(days=1)
     return (target - now).total_seconds()
 
 
 async def run_scheduler() -> None:
-    logger.info("Scheduler started — will check bills daily at 08:00")
+    logger.info("Scheduler started — will check bills daily at %02d:00", settings.alert_hour)
     while True:
-        wait = _seconds_until_next_run(hour=8)
+        wait = _seconds_until_next_run(hour=settings.alert_hour)
         logger.info("Next bill check in %.0f seconds", wait)
         await asyncio.sleep(wait)
         try:
