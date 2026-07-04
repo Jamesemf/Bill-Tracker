@@ -2,6 +2,7 @@ import csv
 import io
 from datetime import date
 from pathlib import Path
+from urllib.parse import urlsplit
 
 from fastapi import APIRouter, Form, HTTPException, Request
 from fastapi.responses import HTMLResponse, RedirectResponse, StreamingResponse
@@ -19,6 +20,7 @@ from app.models import (
     monthly_total,
     next_due_date,
     overdue_bill_ids,
+    paid_period_start,
 )
 
 templates = Jinja2Templates(directory=Path(__file__).parent / "templates")
@@ -64,13 +66,34 @@ def _dashboard_context(today: date, conn, edit_bill_id: int | None = None) -> di
         for b in bills
         if b["frequency"] != "one-off"
     }
-    month_start = today.replace(day=1).isoformat()
     paid_rows = conn.execute(
-        "SELECT DISTINCT bill_id FROM payment_history WHERE paid_date >= ?",
-        (month_start,),
+        "SELECT bill_id, MAX(paid_date) AS last FROM payment_history GROUP BY bill_id"
     ).fetchall()
-    paid_this_month = {r["bill_id"] for r in paid_rows}
-    overdue = overdue_bill_ids(conn, paid_this_month)
+    last_paid = {
+        r["bill_id"]: date.fromisoformat(r["last"]) for r in paid_rows if r["last"]
+    }
+    paid_ids: set[int] = set()
+    for b in bills:
+        lp = last_paid.get(b["id"])
+        if lp is None:
+            continue
+        if b["frequency"] == "one-off":
+            paid_ids.add(b["id"])
+            continue
+        ps = paid_period_start(b, today)
+        if ps is not None and lp >= ps:
+            paid_ids.add(b["id"])
+    overdue = overdue_bill_ids(conn, today, last_paid)
+    days_until = {bid: (d - today).days for bid, d in next_dues.items() if d}
+    due_soon_ids = {
+        b["id"]
+        for b in bills
+        if b["active"]
+        and not b["auto_pay"]
+        and b["id"] not in paid_ids
+        and b["id"] not in overdue
+        and 0 <= days_until.get(b["id"], 999) <= settings.alert_days_before
+    }
     ctx = {
         "bills": bills,
         "history": history,
@@ -79,7 +102,9 @@ def _dashboard_context(today: date, conn, edit_bill_id: int | None = None) -> di
         "annual_total": ann,
         "cat_totals": cat_totals,
         "next_dues": next_dues,
-        "paid_this_month": paid_this_month,
+        "days_until": days_until,
+        "due_soon_ids": due_soon_ids,
+        "paid_ids": paid_ids,
         "overdue_ids": overdue,
         "bill_types": BILL_TYPES,
         "frequencies": FREQUENCIES,
@@ -104,6 +129,57 @@ async def dashboard(request: Request):
     return templates.TemplateResponse(request, "dashboard.html", ctx)
 
 
+def _validate_bill_form(
+    name: str,
+    amount: float,
+    due_day: int,
+    frequency: str,
+    category: str,
+    bill_type: str,
+    url: str,
+    due_month: str,
+) -> int | None:
+    """Validate a bill add/edit form. Raises HTTPException(400) on bad input.
+
+    Returns the resolved due_month (int for quarterly/annual, else None).
+    """
+    if not name or not name.strip():
+        raise HTTPException(status_code=400, detail="Name is required")
+    if amount <= 0:
+        raise HTTPException(status_code=400, detail="Amount must be positive")
+    if frequency not in FREQUENCIES:
+        raise HTTPException(status_code=400, detail="Invalid frequency")
+    if category and category not in CATEGORIES:
+        raise HTTPException(status_code=400, detail="Invalid category")
+    if bill_type and bill_type not in BILL_TYPES:
+        raise HTTPException(status_code=400, detail="Invalid bill type")
+    if frequency == "weekly":
+        if not 0 <= due_day <= 6:
+            raise HTTPException(status_code=400, detail="Day of week must be 0-6")
+    else:
+        if not 1 <= due_day <= 31:
+            raise HTTPException(status_code=400, detail="Due day must be 1-31")
+
+    resolved_month: int | None = None
+    if frequency in ("quarterly", "annual"):
+        if due_month is None or str(due_month).strip() == "":
+            resolved_month = date.today().month
+        else:
+            try:
+                resolved_month = int(due_month)
+            except (TypeError, ValueError):
+                raise HTTPException(status_code=400, detail="Invalid due month")
+            if not 1 <= resolved_month <= 12:
+                raise HTTPException(status_code=400, detail="Due month must be 1-12")
+
+    if url and url.strip():
+        parts = urlsplit(url.strip())
+        if parts.scheme not in ("http", "https") or not parts.netloc:
+            raise HTTPException(status_code=400, detail="URL must be http(s)")
+
+    return resolved_month
+
+
 @router.post("/bills/add")
 async def add_bill(
     name: str = Form(...),
@@ -115,14 +191,17 @@ async def add_bill(
     auto_pay: str = Form(default=""),
     notes: str = Form(""),
     url: str = Form(""),
+    due_month: str = Form(""),
 ):
+    resolved_month = _validate_bill_form(
+        name, amount, due_day, frequency, category, bill_type, url, due_month
+    )
     with db() as conn:
         conn.execute(
-            "INSERT INTO bills (name, amount, currency, due_day, frequency, category, bill_type, auto_pay, notes, url) VALUES (?,?,?,?,?,?,?,?,?,?)",
+            "INSERT INTO bills (name, amount, due_day, frequency, category, bill_type, auto_pay, notes, url, due_month) VALUES (?,?,?,?,?,?,?,?,?,?)",
             (
                 name,
                 amount,
-                settings.currency_symbol,
                 due_day,
                 frequency,
                 category or DEFAULT_CATEGORY,
@@ -130,6 +209,7 @@ async def add_bill(
                 1 if auto_pay else 0,
                 notes or None,
                 url or None,
+                resolved_month,
             ),
         )
     return RedirectResponse("/", status_code=303)
@@ -158,13 +238,17 @@ async def edit_bill(
     auto_pay: str = Form(default=""),
     notes: str = Form(""),
     url: str = Form(""),
+    due_month: str = Form(""),
 ):
+    resolved_month = _validate_bill_form(
+        name, amount, due_day, frequency, category, bill_type, url, due_month
+    )
     with db() as conn:
         bill = conn.execute("SELECT id FROM bills WHERE id = ?", (bill_id,)).fetchone()
         if not bill:
             raise HTTPException(status_code=404)
         conn.execute(
-            "UPDATE bills SET name=?, amount=?, due_day=?, frequency=?, category=?, bill_type=?, auto_pay=?, notes=?, url=? WHERE id=?",
+            "UPDATE bills SET name=?, amount=?, due_day=?, frequency=?, category=?, bill_type=?, auto_pay=?, notes=?, url=?, due_month=? WHERE id=?",
             (
                 name,
                 amount,
@@ -175,6 +259,7 @@ async def edit_bill(
                 1 if auto_pay else 0,
                 notes or None,
                 url or None,
+                resolved_month,
                 bill_id,
             ),
         )
@@ -184,6 +269,7 @@ async def edit_bill(
 @router.post("/bills/{bill_id}/delete")
 async def delete_bill(bill_id: int):
     with db() as conn:
+        conn.execute("DELETE FROM payment_history WHERE bill_id = ?", (bill_id,))
         conn.execute("DELETE FROM bills WHERE id = ?", (bill_id,))
     return RedirectResponse("/", status_code=303)
 
@@ -197,12 +283,14 @@ async def toggle_bill(bill_id: int):
 
 @router.post("/bills/{bill_id}/pay")
 async def mark_paid(bill_id: int, amount_paid: float = Form(None)):
+    if amount_paid is not None and amount_paid < 0:
+        raise HTTPException(status_code=400, detail="Amount paid cannot be negative")
     with db() as conn:
         bill = conn.execute("SELECT * FROM bills WHERE id = ?", (bill_id,)).fetchone()
         if not bill:
             raise HTTPException(status_code=404)
         conn.execute(
-            "INSERT INTO payment_history (bill_id, amount_paid) VALUES (?, ?)",
+            "INSERT OR IGNORE INTO payment_history (bill_id, amount_paid) VALUES (?, ?)",
             (bill_id, amount_paid if amount_paid is not None else bill["amount"]),
         )
     return RedirectResponse("/", status_code=303)
@@ -219,13 +307,17 @@ async def delete_payment(payment_id: int):
 async def export_csv():
     with db() as conn:
         rows = conn.execute(
-            "SELECT name, amount, due_day, frequency, category, active, notes "
+            "SELECT name, amount, due_day, frequency, category, bill_type, "
+            "auto_pay, active, url, due_month, notes "
             "FROM bills ORDER BY id ASC"
         ).fetchall()
 
     output = io.StringIO()
     writer = csv.writer(output)
-    writer.writerow(["name", "amount", "due_day", "frequency", "category", "active", "notes"])
+    writer.writerow([
+        "name", "amount", "due_day", "frequency", "category", "bill_type",
+        "auto_pay", "active", "url", "due_month", "notes",
+    ])
     for row in rows:
         writer.writerow([
             row["name"],
@@ -233,7 +325,11 @@ async def export_csv():
             row["due_day"],
             row["frequency"],
             row["category"],
+            row["bill_type"],
+            "yes" if row["auto_pay"] else "no",
             "yes" if row["active"] else "no",
+            row["url"] or "",
+            row["due_month"] if row["due_month"] is not None else "",
             row["notes"] or "",
         ])
 

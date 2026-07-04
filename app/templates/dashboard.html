@@ -3,7 +3,6 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta http-equiv="refresh" content="60" id="auto-refresh">
   <title>{{ app_title }}</title>
   <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='7' fill='%230b0d13'/><text x='16' y='24' text-anchor='middle' font-size='22' font-family='system-ui,sans-serif' fill='%232dd4a4'>{{ currency }}</text></svg>">
   <style>
@@ -15,11 +14,19 @@
       --border:       rgba(255,255,255,0.07);
       --border-strong:rgba(255,255,255,0.13);
       --text:         #e4e9f5;
-      --text-muted:   #4e5a72;
-      --text-sub:     #7a8aa8;
+      --text-muted:   #7d8aa5;
+      --text-sub:     #94a3bf;
       --green:        #2dd4a4;
       --amber:        #f59e0b;
       --blue:         #5b8df5;
+      --red:          #f87171;
+      --red-bg:       rgba(248,113,113,0.12);
+      --red-border:   rgba(248,113,113,0.3);
+      --red-tint:     rgba(248,113,113,0.05);
+      --info:         #38bdf8;
+      --info-bg:      rgba(56,189,248,0.12);
+      --pay-bg:       #065f46;
+      --pay-text:     #a7f3d0;
       --alert-bg:     rgba(245,158,11,0.07);
       --alert-border: rgba(245,158,11,0.25);
       --alert-text:   #fcd34d;
@@ -36,11 +43,19 @@
       --border:       rgba(0,0,0,0.06);
       --border-strong:rgba(0,0,0,0.12);
       --text:         #111827;
-      --text-muted:   #9ca3af;
-      --text-sub:     #6b7280;
+      --text-muted:   #64748b;
+      --text-sub:     #475569;
       --green:        #059669;
       --amber:        #d97706;
       --blue:         #3b63d4;
+      --red:          #b91c1c;
+      --red-bg:       rgba(185,28,28,0.08);
+      --red-border:   rgba(185,28,28,0.25);
+      --red-tint:     rgba(185,28,28,0.04);
+      --info:         #0369a1;
+      --info-bg:      rgba(3,105,161,0.08);
+      --pay-bg:       #d1fae5;
+      --pay-text:     #065f46;
       --alert-bg:     rgba(245,158,11,0.06);
       --alert-border: rgba(245,158,11,0.3);
       --alert-text:   #92400e;
@@ -51,27 +66,30 @@
 
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
-           background: var(--bg); color: var(--text); min-height: 100vh; padding: 2rem; }
+           background: var(--bg); color: var(--text); min-height: 100vh;
+           max-width: 1180px; margin: 0 auto; padding: 2rem 2rem 4rem; }
 
     h1 { font-size: 1.5rem; font-weight: 700; margin-bottom: 0.2rem; letter-spacing: -0.02em; }
     h2 { font-size: 0.7rem; font-weight: 600; color: var(--text-muted); margin: 2rem 0 0.75rem;
          text-transform: uppercase; letter-spacing: 0.08em; }
 
     .header { display: flex; justify-content: space-between; align-items: flex-start;
-               margin-bottom: 2rem; flex-wrap: wrap; gap: 1rem; }
-    .header-right { display: flex; align-items: flex-start; gap: 1rem; flex-wrap: wrap; }
-    .header-actions { display: flex; flex-direction: column; gap: 0.4rem; align-items: flex-end; }
+               flex-wrap: wrap; gap: 1rem; }
+    .header-actions { display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; }
 
-    .stat-cards { display: flex; gap: 0.75rem; flex-wrap: wrap; }
+    .stat-cards { display: flex; gap: 0.75rem; flex-wrap: wrap; margin: 1.25rem 0 1.5rem; }
     .card { background: var(--surface); border-radius: var(--radius); padding: 1rem 1.25rem;
-            min-width: 140px; border: 1px solid var(--border); box-shadow: var(--shadow); }
-    .card .label { font-size: 0.68rem; color: var(--text-muted); text-transform: uppercase;
+            flex: 1 1 170px; max-width: 280px; min-width: 0;
+            border: 1px solid var(--border); box-shadow: var(--shadow); }
+    .card .label { font-size: 0.7rem; color: var(--text-muted); text-transform: uppercase;
                    letter-spacing: 0.07em; font-weight: 500; }
-    .card .value { font-size: 1.7rem; font-weight: 700; margin-top: 0.2rem; letter-spacing: -0.03em; }
+    .card .value { font-size: 1.7rem; font-weight: 700; margin-top: 0.2rem; letter-spacing: -0.03em;
+                   font-variant-numeric: tabular-nums; }
     .card .value.green { color: var(--green); }
     .card .value.amber { color: var(--amber); }
-    .card-sm { padding: 0.6rem 1rem; min-width: 0; }
-    .card-sm .value { font-size: 1.1rem; }
+    .filter-flag { display: none; font-weight: 500; color: var(--blue);
+                   text-transform: none; letter-spacing: 0; }
+    body.filtering .filter-flag { display: inline; }
 
     .alert-banner { background: var(--alert-bg); border: 1px solid var(--alert-border);
                     border-radius: var(--radius); padding: 0.75rem 1rem; margin-bottom: 1.25rem; }
@@ -85,7 +103,8 @@
     .filter-btn:hover { border-color: var(--border-strong); background: var(--surface2); color: var(--text); }
     .filter-btn.active { border-color: var(--blue); background: rgba(91,141,245,0.08); color: var(--blue); }
 
-    .table-wrap { overflow-x: auto; border-radius: var(--radius); border: 1px solid var(--border); }
+    .table-wrap { overflow-x: auto; border-radius: var(--radius); border: 1px solid var(--border);
+                  background: var(--surface); }
     table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
     thead { background: var(--surface2); }
     th { text-align: left; padding: 0.6rem 0.9rem; color: var(--text-muted); font-weight: 500;
@@ -93,61 +112,74 @@
          border-bottom: 1px solid var(--border); white-space: nowrap; }
     td { padding: 0.7rem 0.9rem; border-bottom: 1px solid var(--border); vertical-align: middle; }
     tbody tr:last-child td { border-bottom: none; }
+    th.num, td.num { text-align: right; }
+    td.num { font-variant-numeric: tabular-nums; }
+    tr.overdue td { background: var(--red-tint); }
+    tr.overdue td:first-child { box-shadow: inset 3px 0 0 var(--red); }
+    tr.due-soon td:first-child { box-shadow: inset 3px 0 0 var(--amber); }
     tbody tr:hover td { background: var(--surface2); }
     tr.inactive td { opacity: 0.35; }
 
     .sortable { cursor: pointer; user-select: none; }
-    .sortable:hover { color: var(--text-sub); }
+    .sortable:hover, .sortable:focus-visible { color: var(--text-sub); outline-offset: -2px; }
     .sortable::after { content: ' \2195'; font-size: 0.6rem; opacity: 0.5; }
     .sortable.asc::after  { content: ' \2191'; color: var(--blue); opacity: 1; }
     .sortable.desc::after { content: ' \2193'; color: var(--blue); opacity: 1; }
 
-    /* Family member chip — coloured dot + name, no background box */
-    .member-chip { display: inline-flex; align-items: center; gap: 0.45rem;
-                   font-size: 0.82rem; font-weight: 500; color: var(--text-sub); }
-    .member-chip::before { content: ''; width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+    .bill-link { color: var(--text); text-decoration: none; font-weight: 700; }
+    .bill-link:hover { color: var(--blue); }
 
-    /* Type tag — subtle tinted bordered pill */
-    .type-tag { display: inline-block; padding: 0.18rem 0.55rem; border-radius: 5px;
-                font-size: 0.69rem; font-weight: 500; text-transform: capitalize;
-                border: 1px solid currentColor; }
+    .due-rel { display: block; font-weight: 500; }
+    .due-date { display: block; font-size: 0.72rem; color: var(--text-muted); margin-top: 0.1rem; }
+
+    /* Family member chip — coloured dot + name; colour comes from --chip */
+    .member-chip { --chip: var(--text-muted); display: inline-flex; align-items: center; gap: 0.45rem;
+                   font-size: 0.82rem; font-weight: 500; color: var(--text-sub); }
+    .member-chip::before { content: ''; width: 7px; height: 7px; border-radius: 50%;
+                           flex-shrink: 0; background: var(--chip); }
+
+    /* Type tag — subtle tinted bordered pill; colour comes from --tag */
+    .type-tag { --tag: var(--text-sub); display: inline-block; padding: 0.18rem 0.55rem;
+                border-radius: 5px; font-size: 0.69rem; font-weight: 500; text-transform: capitalize;
+                color: var(--tag); border: 1px solid currentColor;
+                border-color: color-mix(in srgb, var(--tag) 35%, transparent);
+                background: color-mix(in srgb, var(--tag) 10%, transparent); }
 
     .badge { display: inline-block; padding: 0.15rem 0.5rem; border-radius: 5px;
              font-size: 0.69rem; font-weight: 500; text-transform: capitalize; }
-    .badge.overdue { background: #7f1d1d; color: #fca5a5; }
+    .badge.overdue { background: var(--red-bg); color: var(--red); border: 1px solid var(--red-border); }
+    .badge.dd { background: var(--info-bg); color: var(--info); }
 
-    /* Member and type colours — generated from the configured lists */
-    {% for c in categories %}
-    .member-chip.{{ c }}::before { background: {{ member_colors[c] }}; }
-    .chart-fill.{{ c }} { background: {{ member_colors[c] }}; }
-    {% endfor %}
-    {% for t in bill_types %}
-    .type-tag.{{ t }} { color: {{ type_colors[t] }}; border-color: {{ type_colors[t] }}40; background: {{ type_colors[t] }}12; }
-    .chart-fill.{{ t }} { background: {{ type_colors[t] }}; }
-    {% endfor %}
+    .status-pill { display: inline-flex; align-items: center; padding: 0.28rem 0.6rem;
+                   border-radius: 6px; font-size: 0.75rem; font-weight: 500; white-space: nowrap; }
+    .status-pill.paid { color: var(--green); background: color-mix(in srgb, var(--green) 10%, transparent); }
+    .status-pill.auto { color: var(--info); background: var(--info-bg); }
 
     .actions { display: flex; flex-wrap: wrap; gap: 0.35rem; align-items: center; }
 
     .btn { display: inline-block; padding: 0.3rem 0.7rem; border: none; border-radius: 6px;
            cursor: pointer; font-size: 0.78rem; font-weight: 500; transition: opacity 0.15s, filter 0.15s; }
     .btn:hover { filter: brightness(1.15); }
-    .btn-pay  { background: #065f46; color: #a7f3d0; }
+    .btn-pay  { background: var(--pay-bg); color: var(--pay-text); }
     .btn-edit { background: var(--surface2); color: var(--text-sub); border: 1px solid var(--border); }
     .btn-edit:hover { filter: none; background: var(--surface3); color: var(--text); }
     .btn-tog  { background: rgba(91,141,245,0.12); color: var(--blue); border: 1px solid rgba(91,141,245,0.2); }
     .btn-tog:hover { filter: none; background: rgba(91,141,245,0.2); }
-    .btn-del  { background: rgba(239,68,68,0.1); color: #f87171; border: 1px solid rgba(239,68,68,0.2); }
-    .btn-del:hover { filter: none; background: rgba(239,68,68,0.18); }
+    .btn-del  { background: var(--red-bg); color: var(--red); border: 1px solid var(--red-border); }
+    .btn-del:hover { filter: none; }
     .btn-add  { background: var(--blue); color: #fff; padding: 0.4rem 1rem; font-size: 0.85rem; }
     .btn-sm   { padding: 0.2rem 0.45rem; font-size: 0.72rem; }
 
     .amount-input { width: 5rem; background: var(--input-bg); border: 1px solid var(--border);
-                    border-radius: 6px; color: var(--text); padding: 0.25rem 0.4rem; font-size: 0.78rem; }
+                    border-radius: 6px; color: var(--text); padding: 0.25rem 0.4rem;
+                    font-size: 0.78rem; font-variant-numeric: tabular-nums; }
 
-    .bill-form { background: var(--surface); border-radius: var(--radius); padding: 1.25rem;
-                 margin-top: 0.75rem; display: grid;
-                 grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 0.75rem;
-                 border: 1px solid var(--border); }
+    .empty-state { background: var(--surface); border: 1px dashed var(--border-strong);
+                   border-radius: var(--radius); padding: 3rem 1.5rem; text-align: center; }
+    .empty-state strong { display: block; font-size: 1.05rem; margin-bottom: 0.4rem; }
+    .empty-state p { color: var(--text-sub); font-size: 0.875rem; margin-bottom: 1.25rem; }
+
+    .bill-form { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 0.75rem; }
     .bill-form label { font-size: 0.7rem; color: var(--text-muted); display: block;
                        margin-bottom: 0.3rem; text-transform: uppercase; letter-spacing: 0.05em; font-weight: 500; }
     .bill-form input, .bill-form select, .bill-form textarea {
@@ -158,10 +190,6 @@
     .bill-form .full { grid-column: 1 / -1; }
     .bill-form .submit-row { grid-column: 1 / -1; display: flex; justify-content: flex-end; gap: 0.5rem; }
 
-    details summary { cursor: pointer; color: var(--text-sub); font-size: 0.85rem; margin-bottom: 0.5rem;
-                      font-weight: 500; }
-    details summary:hover { color: var(--text); }
-
     .edit-dialog { background: var(--surface); border: 1px solid var(--border-strong);
                    border-radius: 14px; color: var(--text); padding: 1.5rem;
                    width: min(580px, 95vw); max-height: 90vh; overflow-y: auto;
@@ -169,25 +197,29 @@
     .edit-dialog::backdrop { background: rgba(0,0,0,0.65); backdrop-filter: blur(2px); }
     .dialog-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.25rem; }
     .dialog-header strong { font-size: 0.95rem; font-weight: 600; }
+    .dialog-footer { display: flex; justify-content: space-between; align-items: center;
+                     margin-top: 1.25rem; padding-top: 1rem; border-top: 1px solid var(--border); }
 
+    .charts-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
+                   column-gap: 1.25rem; align-items: start; }
+    .chart-card { background: var(--surface); border-radius: var(--radius);
+                  border: 1px solid var(--border); padding: 1rem 1.25rem; }
     .chart-bar-row { display: flex; align-items: center; gap: 0.75rem; margin-bottom: 0.6rem; }
-    .chart-label { width: 6rem; text-align: right; flex-shrink: 0; font-size: 0.75rem; color: var(--text-sub); }
+    .chart-bar-row:last-child { margin-bottom: 0; }
+    .chart-label { width: 6rem; text-align: right; justify-content: flex-end; flex-shrink: 0;
+                   font-size: 0.75rem; color: var(--text-sub); }
     .chart-track { flex: 1; background: var(--surface2); border-radius: 4px; overflow: hidden; height: 1.1rem; }
     .chart-fill { height: 100%; border-radius: 4px; transition: width 0.4s ease; }
-    .chart-value { font-size: 0.75rem; color: var(--text-sub); min-width: 5rem; text-align: right; flex-shrink: 0; }
+    .chart-value { font-size: 0.75rem; color: var(--text-sub); min-width: 5rem; text-align: right;
+                   flex-shrink: 0; font-variant-numeric: tabular-nums; }
 
     @media (max-width: 640px) {
-      body { padding: 1rem; }
+      body { padding: 1rem 1rem 3rem; }
       h2 { margin: 1.25rem 0 0.5rem; }
 
-      /* Header — stack vertically */
-      .header { flex-direction: column; gap: 0.75rem; margin-bottom: 1rem; }
-      .header-right { flex-direction: column; width: 100%; gap: 0.75rem; }
-      .header-actions { flex-direction: row; justify-content: flex-start; }
-
-      /* Stat cards — equal width, single row */
-      .stat-cards { width: 100%; }
-      .card { flex: 1; min-width: 0; padding: 0.75rem; }
+      .header { flex-direction: column; gap: 0.75rem; }
+      .stat-cards { margin: 0.75rem 0 1rem; }
+      .card { flex: 1; max-width: none; padding: 0.75rem; }
       .card .value { font-size: 1.3rem; }
       .card .label { font-size: 0.68rem; }
 
@@ -198,45 +230,64 @@
       .filter-bar span { flex-shrink: 0; }
       .filter-btn { flex-shrink: 0; }
 
-      /* Table — hide Notes column */
-      .col-notes { display: none; }
+      /* Bills table becomes stacked cards */
+      #bills-table thead { display: none; }
+      #bills-table, #bills-table tbody, #bills-table tr { display: block; }
+      #bills-table tr { padding: 0.8rem 0.9rem; border-bottom: 1px solid var(--border); }
+      #bills-table tr:last-child { border-bottom: none; }
+      #bills-table td { display: flex; justify-content: space-between; align-items: center;
+                        gap: 0.75rem; padding: 0.2rem 0; border-bottom: none; }
+      #bills-table td::before { content: attr(data-label); font-size: 0.66rem;
+                                text-transform: uppercase; letter-spacing: 0.06em;
+                                color: var(--text-muted); flex-shrink: 0; }
+      #bills-table td.col-name { display: block; font-size: 0.95rem; padding-bottom: 0.4rem; }
+      #bills-table td.col-name::before, #bills-table td.col-actions::before { content: none; }
+      #bills-table td.col-actions { justify-content: flex-start; padding-top: 0.5rem; }
+      #bills-table td .due-wrap { text-align: right; }
+      #bills-table .due-date { margin-top: 0; }
+      #bills-table tbody tr:hover td { background: none; }
+      tr.overdue td { background: none; }
+      tr.overdue { background: var(--red-tint); }
+      tr.overdue td:first-child, tr.due-soon td:first-child { box-shadow: none; }
+      tr.overdue { box-shadow: inset 3px 0 0 var(--red); }
+      tr.due-soon { box-shadow: inset 3px 0 0 var(--amber); }
+      .col-notes, .col-freq { display: none !important; }
 
-      /* Action buttons — tighter */
       .actions { gap: 0.3rem; }
-      .amount-input { width: 4rem; }
+      .amount-input { width: 4.5rem; }
 
-      /* Charts — narrower labels */
       .chart-label { width: 4.5rem; font-size: 0.65rem; }
       .chart-value { min-width: 3.5rem; font-size: 0.72rem; }
     }
   </style>
 </head>
 <body>
+{% set month_names = ['January','February','March','April','May','June','July','August','September','October','November','December'] %}
 
 <div class="header">
   <div>
     <h1>{{ app_title }}</h1>
     <p style="color:var(--text-muted);font-size:0.85rem;">{{ today }}</p>
   </div>
-  <div class="header-right">
-    <div class="stat-cards">
-      <div class="card">
-        <div class="label">Monthly est.</div>
-        <div class="value green" id="stat-monthly">{{ currency }}{{ "%.2f"|format(monthly_total) }}</div>
-      </div>
-      <div class="card">
-        <div class="label">Annual est.</div>
-        <div class="value amber" id="stat-annual">{{ currency }}{{ "%.2f"|format(annual_total) }}</div>
-      </div>
-      <div class="card">
-        <div class="label">Active bills</div>
-        <div class="value">{{ bills | selectattr('active', 'equalto', 1) | list | length }}</div>
-      </div>
-    </div>
-    <div class="header-actions">
-      <button class="btn btn-tog" id="theme-toggle" onclick="toggleTheme()">Light mode</button>
-      <a href="/export/csv" class="btn btn-add" style="text-decoration:none;font-size:0.8rem;padding:0.3rem 0.7rem;">Export CSV</a>
-    </div>
+  <div class="header-actions">
+    <button class="btn btn-edit" id="theme-toggle" onclick="toggleTheme()">Light mode</button>
+    <a href="/export/csv" class="btn btn-edit" style="text-decoration:none;">Export CSV</a>
+    <button class="btn btn-add" onclick="document.getElementById('add-dialog').showModal()">+ Add bill</button>
+  </div>
+</div>
+
+<div class="stat-cards">
+  <div class="card">
+    <div class="label">Monthly est. <span class="filter-flag">&middot; filtered</span></div>
+    <div class="value green" id="stat-monthly">{{ currency }}{{ "%.2f"|format(monthly_total) }}</div>
+  </div>
+  <div class="card">
+    <div class="label">Annual est. <span class="filter-flag">&middot; filtered</span></div>
+    <div class="value amber" id="stat-annual">{{ currency }}{{ "%.2f"|format(annual_total) }}</div>
+  </div>
+  <div class="card">
+    <div class="label">Active bills</div>
+    <div class="value">{{ bills | selectattr('active', 'equalto', 1) | list | length }}</div>
   </div>
 </div>
 
@@ -250,6 +301,7 @@
 
 <h2>Bills</h2>
 
+{% if bills %}
 <div style="margin-bottom:0.6rem;">
   <input id="bill-search" type="search" placeholder="Search bills…"
          oninput="searchBills(this.value)"
@@ -260,14 +312,14 @@
   <span style="min-width:5rem;">Member:</span>
   <button class="filter-btn active" data-filter-member="all" onclick="filterMember('all')">All</button>
   {% for c in categories %}
-  <button class="filter-btn" data-filter-member="{{ c }}" onclick="filterMember('{{ c }}')"><span class="member-chip {{ c }}">{{ c | title }}</span></button>
+  <button class="filter-btn" data-filter-member="{{ c }}" onclick="filterMember('{{ c }}')"><span class="member-chip" style="--chip:{{ member_colors.get(c, 'var(--text-muted)') }}">{{ c | title }}</span></button>
   {% endfor %}
 </div>
 <div class="filter-bar" style="margin-top:0.4rem;">
   <span style="min-width:5rem;">Type:</span>
   <button class="filter-btn active" data-filter-type="all" onclick="filterType('all')">All</button>
   {% for t in bill_types %}
-  <button class="filter-btn" data-filter-type="{{ t }}" onclick="filterType('{{ t }}')"><span class="type-tag {{ t }}">{{ t }}</span></button>
+  <button class="filter-btn" data-filter-type="{{ t }}" onclick="filterType('{{ t }}')"><span class="type-tag" style="--tag:{{ type_colors.get(t, 'var(--text-sub)') }}">{{ t }}</span></button>
   {% endfor %}
 </div>
 
@@ -275,73 +327,69 @@
 <table id="bills-table">
   <thead>
     <tr>
-      <th class="sortable" data-col="0">Name</th>
-      <th class="sortable" data-col="1">Amount</th>
-      <th class="sortable" data-col="2">Next Due</th>
-      <th>Frequency</th>
-      <th class="sortable" data-col="4">Member</th>
-      <th class="sortable" data-col="5">Type</th>
+      <th class="sortable" data-col="0" tabindex="0">Name</th>
+      <th class="sortable num" data-col="1" tabindex="0">Amount</th>
+      <th class="sortable" data-col="2" tabindex="0">Next Due</th>
+      <th class="col-freq">Frequency</th>
+      <th class="sortable" data-col="4" tabindex="0">Member</th>
+      <th class="sortable" data-col="5" tabindex="0">Type</th>
       <th class="col-notes">Notes</th>
       <th></th>
     </tr>
   </thead>
   <tbody>
     {% for b in bills %}
-    <tr class="{{ 'inactive' if not b.active }}" data-cat="{{ b.category }}" data-type="{{ b.bill_type }}"
+    {% set row_state = 'overdue' if b.id in overdue_ids else ('due-soon' if b.id in due_soon_ids else '') %}
+    <tr class="{{ 'inactive' if not b.active }} {{ row_state }}" data-cat="{{ b.category }}" data-type="{{ b.bill_type }}"
         data-monthly="{% if b.active %}{% if b.frequency == 'weekly' %}{{ (b.amount * 52 / 12)|round(4) }}{% elif b.frequency == 'monthly' %}{{ b.amount }}{% elif b.frequency == 'quarterly' %}{{ (b.amount / 3)|round(4) }}{% elif b.frequency == 'annual' %}{{ (b.amount / 12)|round(4) }}{% else %}0{% endif %}{% else %}0{% endif %}">
-      <td>
-        {% if b.url %}
-        <a href="{{ b.url }}" target="_blank" rel="noopener"
-           style="color:var(--text);text-decoration:none;font-weight:700;">{{ b.name }} ↗</a>
+      <td class="col-name">
+        {% if b.url and (b.url.startswith('http://') or b.url.startswith('https://')) %}
+        <a href="{{ b.url }}" target="_blank" rel="noopener" class="bill-link">{{ b.name }} ↗</a>
         {% else %}
         <strong>{{ b.name }}</strong>
         {% endif %}
         {% if b.auto_pay %}
-        <span class="badge" style="margin-left:0.4rem;background:#1c3351;color:#38bdf8;" title="Direct debit / auto-pay">DD</span>
+        <span class="badge dd" style="margin-left:0.4rem;" title="Direct debit / auto-pay">DD</span>
         {% endif %}
         {% if b.id in overdue_ids %}
         <span class="badge overdue" style="margin-left:0.4rem;">overdue</span>
         {% endif %}
       </td>
-      <td data-val="{{ b.amount }}">{{ currency }}{{ "%.2f"|format(b.amount) }}</td>
-      <td data-val="{{ next_dues[b.id].isoformat() if b.id in next_dues and next_dues[b.id] else ('0000' if b.frequency == 'one-off' else '9999-12-31') }}">
+      <td class="num" data-label="Amount" data-val="{{ b.amount }}">{{ currency }}{{ "%.2f"|format(b.amount) }}</td>
+      <td data-label="Next due" data-val="{{ next_dues[b.id].isoformat() if b.id in next_dues and next_dues[b.id] else ('0000-01-01' if b.frequency == 'one-off' else '9999-12-31') }}">
         {% if b.id in next_dues and next_dues[b.id] %}
-          {{ next_dues[b.id] | due_date }}
+        {% set du = days_until.get(b.id) %}
+        <span class="due-wrap">
+          <span class="due-rel">{% if du == 0 %}today{% elif du == 1 %}tomorrow{% else %}in {{ du }} days{% endif %}</span>
+          <span class="due-date">{{ next_dues[b.id] | due_date }}</span>
+        </span>
         {% elif b.frequency == 'one-off' %}
           one-off
         {% else %}
           &mdash;
         {% endif %}
       </td>
-      <td>{{ b.frequency }}</td>
-      <td data-val="{{ b.category }}"><span class="member-chip {{ b.category }}">{{ b.category | title }}</span></td>
-      <td data-val="{{ b.bill_type }}"><span class="type-tag {{ b.bill_type }}">{{ b.bill_type }}</span></td>
-      <td class="col-notes" style="color:var(--text-muted);font-size:0.8rem;max-width:12rem;">{{ b.notes or '' }}</td>
-      <td>
+      <td class="col-freq" data-label="Frequency">{{ b.frequency }}</td>
+      <td data-label="Member" data-val="{{ b.category }}"><span class="member-chip" style="--chip:{{ member_colors.get(b.category, 'var(--text-muted)') }}">{{ b.category | title }}</span></td>
+      <td data-label="Type" data-val="{{ b.bill_type }}"><span class="type-tag" style="--tag:{{ type_colors.get(b.bill_type, 'var(--text-sub)') }}">{{ b.bill_type }}</span></td>
+      <td class="col-notes" style="color:var(--text-muted);font-size:0.8rem;max-width:12rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ b.notes or '' }}</td>
+      <td class="col-actions">
         <div class="actions">
           {% if b.active %}
-            {% if b.id in paid_this_month %}
-            <span class="btn btn-pay" style="opacity:0.6;cursor:default;">Paid &#10003;</span>
+            {% if b.id in paid_ids %}
+            <span class="status-pill paid">Paid &#10003;</span>
             {% elif b.auto_pay %}
-            <span class="btn btn-tog" style="opacity:0.6;cursor:default;" title="Will be logged automatically on due date">Auto &#10003;</span>
+            <span class="status-pill auto" title="Will be logged automatically on due date">Auto &#10003;</span>
             {% else %}
             <form method="post" action="/bills/{{ b.id }}/pay" style="display:flex;gap:0.3rem;align-items:center;">
               <input type="number" name="amount_paid" step="0.01" min="0"
-                     value="{{ '%.2f'|format(b.amount) }}" class="amount-input">
+                     value="{{ '%.2f'|format(b.amount) }}" class="amount-input" aria-label="Amount paid">
               <button type="button" class="btn btn-pay"
-                      onclick="submitPay(this, '{{ b.name }}')">Paid</button>
+                      data-name="{{ b.name }}" onclick="submitPay(this)">Paid</button>
             </form>
             {% endif %}
           {% endif %}
-          <button class="btn btn-edit"
-                  onclick="openEdit({{ b.id }})">Edit</button>
-          <form method="post" action="/bills/{{ b.id }}/toggle">
-            <button class="btn btn-tog">{{ 'Disable' if b.active else 'Enable' }}</button>
-          </form>
-          <form method="post" action="/bills/{{ b.id }}/delete"
-                onsubmit="return confirm('Delete {{ b.name }}?')">
-            <button class="btn btn-del">Delete</button>
-          </form>
+          <button class="btn btn-edit" onclick="openEdit({{ b.id }})">Edit</button>
         </div>
       </td>
     </tr>
@@ -349,16 +397,23 @@
   </tbody>
 </table>
 </div>
+{% else %}
+<div class="empty-state">
+  <strong>No bills yet</strong>
+  <p>Add your household bills and subscriptions to see monthly totals, due dates, and payment reminders.</p>
+  <button class="btn btn-add" onclick="document.getElementById('add-dialog').showModal()">+ Add your first bill</button>
+</div>
+{% endif %}
 
 {# Edit dialogs — one per bill #}
 {% for b in bills %}
 <dialog id="edit-{{ b.id }}" class="edit-dialog">
   <div class="dialog-header">
     <strong>Edit bill</strong>
-    <button type="button" class="btn btn-del btn-sm"
+    <button type="button" class="btn btn-edit btn-sm" aria-label="Close"
             onclick="document.getElementById('edit-{{ b.id }}').close()">&#10005;</button>
   </div>
-  <form method="post" action="/bills/{{ b.id }}/edit" class="bill-form" style="padding:0;background:none;">
+  <form method="post" action="/bills/{{ b.id }}/edit" class="bill-form">
     <div>
       <label>Name</label>
       <input name="name" required value="{{ b.name }}">
@@ -383,6 +438,16 @@
       <select name="frequency" class="freq-select">
         {% for f in frequencies %}
         <option value="{{ f }}" {{ 'selected' if b.frequency == f }}>{{ f }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="due-month-field"
+         {% if b.frequency not in ('quarterly', 'annual') %}style="display:none"{% endif %}>
+      <label>Due month</label>
+      <select name="due_month" class="due-month-select"
+              {% if b.frequency not in ('quarterly', 'annual') %}disabled{% endif %}>
+        {% for m in month_names %}
+        <option value="{{ loop.index }}" {{ 'selected' if b.due_month == loop.index }}>{{ m }}</option>
         {% endfor %}
       </select>
     </div>
@@ -413,19 +478,34 @@
     <div class="full" style="display:flex;align-items:center;gap:0.5rem;">
       <input type="checkbox" name="auto_pay" value="1" id="auto-pay-{{ b.id }}"
              style="width:auto;" {{ 'checked' if b.auto_pay }}>
-      <label for="auto-pay-{{ b.id }}" style="margin:0;font-size:0.875rem;color:var(--text);">Direct debit / auto-pay</label>
+      <label for="auto-pay-{{ b.id }}" style="margin:0;font-size:0.875rem;color:var(--text);text-transform:none;letter-spacing:0;">Direct debit / auto-pay</label>
     </div>
     <div class="submit-row">
-      <button type="button" class="btn btn-tog"
+      <button type="button" class="btn btn-edit"
               onclick="document.getElementById('edit-{{ b.id }}').close()">Cancel</button>
       <button type="submit" class="btn btn-add">Save changes</button>
     </div>
   </form>
+  <div class="dialog-footer">
+    <form method="post" action="/bills/{{ b.id }}/toggle">
+      <button class="btn btn-tog btn-sm">{{ 'Disable this bill' if b.active else 'Enable this bill' }}</button>
+    </form>
+    <form method="post" action="/bills/{{ b.id }}/delete"
+          data-name="{{ b.name }}"
+          onsubmit="return confirm('Delete ' + this.dataset.name + '? This also removes its payment history.')">
+      <button class="btn btn-del btn-sm">Delete bill</button>
+    </form>
+  </div>
 </dialog>
 {% endfor %}
 
-<details style="margin-top:1.5rem;">
-  <summary>+ Add a bill</summary>
+{# Add-bill dialog #}
+<dialog id="add-dialog" class="edit-dialog">
+  <div class="dialog-header">
+    <strong>Add a bill</strong>
+    <button type="button" class="btn btn-edit btn-sm" aria-label="Close"
+            onclick="document.getElementById('add-dialog').close()">&#10005;</button>
+  </div>
   <form method="post" action="/bills/add" class="bill-form">
     <div>
       <label>Name</label>
@@ -451,6 +531,12 @@
         {% for f in frequencies %}<option value="{{ f }}">{{ f }}</option>{% endfor %}
       </select>
     </div>
+    <div class="due-month-field" style="display:none">
+      <label>Due month</label>
+      <select name="due_month" class="due-month-select" disabled>
+        {% for m in month_names %}<option value="{{ loop.index }}">{{ m }}</option>{% endfor %}
+      </select>
+    </div>
     <div>
       <label>Family member</label>
       <select name="category">
@@ -473,53 +559,57 @@
     </div>
     <div class="full" style="display:flex;align-items:center;gap:0.5rem;">
       <input type="checkbox" name="auto_pay" value="1" id="add-auto-pay" style="width:auto;">
-      <label for="add-auto-pay" style="margin:0;font-size:0.875rem;color:var(--text);">Direct debit / auto-pay (payment logged automatically on due date)</label>
+      <label for="add-auto-pay" style="margin:0;font-size:0.875rem;color:var(--text);text-transform:none;letter-spacing:0;">Direct debit / auto-pay (payment logged automatically on due date)</label>
     </div>
     <div class="submit-row">
+      <button type="button" class="btn btn-edit"
+              onclick="document.getElementById('add-dialog').close()">Cancel</button>
       <button type="submit" class="btn btn-add">Add Bill</button>
     </div>
   </form>
-</details>
+</dialog>
 
-{% if cat_totals %}
-<div id="member-chart-section">
-<h2>Monthly spend by family member</h2>
-<div style="background:var(--surface);border-radius:10px;padding:1rem 1.25rem;">
-  {% set max_val = cat_totals.values()|max %}
-  {% for cat, val in cat_totals.items()|sort(attribute='1', reverse=True) %}
-  <div class="chart-bar-row">
-    <span class="member-chip {{ cat }} chart-label" style="justify-content:flex-end;">{{ cat | title }}</span>
-    <div class="chart-track">
-      <div class="chart-fill {{ cat }}" style="width:{{ ((val / max_val) * 100)|round(1) }}%;"></div>
+<div class="charts-grid">
+  {% if cat_totals %}
+  <section id="member-chart-section">
+    <h2>Monthly spend by family member</h2>
+    <div class="chart-card">
+      {% set max_val = cat_totals.values()|max %}
+      {% for cat, val in cat_totals.items()|sort(attribute='1', reverse=True) %}
+      <div class="chart-bar-row">
+        <span class="member-chip chart-label" style="--chip:{{ member_colors.get(cat, 'var(--text-muted)') }}">{{ cat | title }}</span>
+        <div class="chart-track">
+          <div class="chart-fill" style="width:{{ ((val / max_val) * 100)|round(1) }}%;background:{{ member_colors.get(cat, 'var(--text-muted)') }};"></div>
+        </div>
+        <span class="chart-value">{{ currency }}{{ "%.2f"|format(val) }}/mo</span>
+      </div>
+      {% endfor %}
     </div>
-    <span class="chart-value">{{ currency }}{{ "%.2f"|format(val) }}/mo</span>
-  </div>
-  {% endfor %}
+  </section>
+  {% endif %}
+  <section>
+    <h2>Monthly spend by type</h2>
+    <div id="type-chart-container" class="chart-card"></div>
+  </section>
 </div>
-</div>
-{% endif %}
-
-<h2>Monthly spend by type</h2>
-<div id="type-chart-container" style="background:var(--surface);border-radius:10px;padding:1rem 1.25rem;margin-bottom:1rem;"></div>
-
 
 {% if history %}
 <h2>Recent payments</h2>
 <div class="table-wrap">
 <table id="history-table">
   <thead>
-    <tr><th>Bill</th><th>Date</th><th>Amount paid</th><th></th></tr>
+    <tr><th>Bill</th><th>Date</th><th class="num">Amount paid</th><th></th></tr>
   </thead>
   <tbody>
     {% for h in history %}
     <tr data-cat="{{ h.category }}">
       <td>{{ h.name }}</td>
       <td style="color:var(--text-muted);">{{ h.paid_date }}</td>
-      <td>{{ currency }}{{ "%.2f"|format(h.amount_paid) }}</td>
+      <td class="num">{{ currency }}{{ "%.2f"|format(h.amount_paid) }}</td>
       <td>
         <form method="post" action="/payments/{{ h.id }}/delete"
               onsubmit="return confirm('Remove this payment record?')">
-          <button class="btn btn-del btn-sm">&#10005;</button>
+          <button class="btn btn-del btn-sm" aria-label="Remove payment record">&#10005;</button>
         </form>
       </td>
     </tr>
@@ -531,6 +621,13 @@
 
 <script>
 var CURRENCY = {{ currency | tojson }};
+var TYPE_COLORS = {{ type_colors | tojson }};
+
+function _esc(s) {
+  return String(s).replace(/[&<>"']/g, function(ch) {
+    return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch];
+  });
+}
 
 // --- Type chart (computed from visible rows) ---
 function _updateTypeChart() {
@@ -548,20 +645,25 @@ function _updateTypeChart() {
   container.innerHTML = entries.map(function(e) {
     var t = e[0], val = Math.round(e[1] * 100) / 100;
     var pct = ((val / max) * 100).toFixed(1);
-    return '<div class="chart-bar-row"><span class="type-tag ' + t + ' chart-label" style="text-align:right;width:6rem;">' + t + '</span>' +
-      '<div class="chart-track"><div class="chart-fill ' + t + '" style="width:' + pct + '%;"></div></div>' +
+    var color = TYPE_COLORS[t] || 'var(--text-sub)';
+    return '<div class="chart-bar-row"><span class="type-tag chart-label" style="--tag:' + _esc(color) + '">' + _esc(t) + '</span>' +
+      '<div class="chart-track"><div class="chart-fill" style="width:' + pct + '%;background:' + _esc(color) + ';"></div></div>' +
       '<span class="chart-value">' + CURRENCY + val.toFixed(2) + '/mo</span></div>';
   }).join('');
 }
 
-// --- Theme toggle ---
+// --- Theme toggle (stored choice wins, else follow the OS preference) ---
 function toggleTheme() {
   var isLight = document.body.classList.toggle('light');
   localStorage.setItem('theme', isLight ? 'light' : 'dark');
   document.getElementById('theme-toggle').textContent = isLight ? 'Dark mode' : 'Light mode';
 }
 (function () {
-  if (localStorage.getItem('theme') === 'light') {
+  var stored = localStorage.getItem('theme');
+  var light = stored
+    ? stored === 'light'
+    : window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches;
+  if (light) {
     document.body.classList.add('light');
     var btn = document.getElementById('theme-toggle');
     if (btn) btn.textContent = 'Dark mode';
@@ -569,8 +671,9 @@ function toggleTheme() {
 })();
 
 // --- Paid confirmation ---
-function submitPay(btn, name) {
+function submitPay(btn) {
   var form = btn.closest('form');
+  var name = btn.dataset.name || 'this bill';
   var amt = form.querySelector('input[name="amount_paid"]').value;
   if (confirm('Mark ' + name + ' as paid for ' + CURRENCY + parseFloat(amt).toFixed(2) + '?')) {
     form.submit();
@@ -580,20 +683,20 @@ function submitPay(btn, name) {
 // --- Open edit dialog ---
 function openEdit(id) {
   var dlg = document.getElementById('edit-' + id);
-  if (dlg) {
-    dlg.showModal();
-    suppressRefresh();
-  }
+  if (dlg) dlg.showModal();
 }
 
-// --- Suppress auto-refresh while a dialog is open ---
-function suppressRefresh() {
-  var meta = document.getElementById('auto-refresh');
-  if (meta) meta.remove();
+// --- Auto-refresh: reload every 60s, but never while a dialog is open or the
+//     search box is focused; filter/search/sort/scroll persist across reloads.
+function _dialogOpen() {
+  return Array.prototype.some.call(document.querySelectorAll('dialog'), function(d) { return d.open; });
 }
-document.querySelectorAll('dialog').forEach(function(dlg) {
-  dlg.addEventListener('cancel', function() {});
-});
+setInterval(function() {
+  var searchFocused = document.activeElement === document.getElementById('bill-search');
+  if (_dialogOpen() || searchFocused) return;
+  _saveState();
+  location.reload();
+}, 60000);
 
 // --- Search + filter state ---
 var _activeMember = 'all', _activeType = 'all';
@@ -606,6 +709,8 @@ function _applyFilters() {
     var typeOk   = (_activeType   === 'all' || tr.dataset.type === _activeType);
     tr.style.display = (memberOk && typeOk && name.includes(q)) ? '' : 'none';
   });
+  document.body.classList.toggle('filtering',
+    _activeMember !== 'all' || _activeType !== 'all' || q !== '');
   _updateTotals();
   document.querySelectorAll('#history-table tbody tr').forEach(function(tr) {
     var memberOk = (_activeMember === 'all' || tr.dataset.cat === _activeMember);
@@ -628,7 +733,7 @@ function _updateTotals() {
   if (aEl) aEl.textContent = CURRENCY + (Math.round(total * 1200) / 100).toFixed(2);
 }
 
-function searchBills(term) { _applyFilters(); }
+function searchBills(term) { _applyFilters(); _saveState(); }
 
 function filterMember(val) {
   _activeMember = val;
@@ -638,6 +743,7 @@ function filterMember(val) {
   var memberChart = document.getElementById('member-chart-section');
   if (memberChart) memberChart.style.display = val === 'all' ? '' : 'none';
   _applyFilters();
+  _saveState();
 }
 
 function filterType(val) {
@@ -646,50 +752,117 @@ function filterType(val) {
     b.classList.toggle('active', b.dataset.filterType === val);
   });
   _applyFilters();
+  _saveState();
 }
 
-// --- Column sort ---
+// --- Column sort (disabled bills always sink to the bottom) ---
+var _sortCol = -1, _sortDir = 1;
+var _ISO_DATE = /^\d{4}-\d{2}-\d{2}/;
+
+function _applySort(col, dir) {
+  var table = document.getElementById('bills-table');
+  if (!table) return;
+  _sortCol = col; _sortDir = dir;
+  table.querySelectorAll('th.sortable').forEach(function(h) {
+    h.classList.remove('asc', 'desc');
+    h.removeAttribute('aria-sort');
+  });
+  var th = table.querySelector('th.sortable[data-col="' + col + '"]');
+  if (th) {
+    th.classList.add(dir === 1 ? 'asc' : 'desc');
+    th.setAttribute('aria-sort', dir === 1 ? 'ascending' : 'descending');
+  }
+  var tbody = table.querySelector('tbody');
+  var rows = Array.from(tbody.querySelectorAll('tr'));
+  rows.sort(function(a, b) {
+    var aIn = a.classList.contains('inactive'), bIn = b.classList.contains('inactive');
+    if (aIn !== bIn) return aIn ? 1 : -1;
+    var aCell = a.cells[col], bCell = b.cells[col];
+    var aVal = (aCell.dataset.val !== undefined) ? aCell.dataset.val : aCell.textContent.trim();
+    var bVal = (bCell.dataset.val !== undefined) ? bCell.dataset.val : bCell.textContent.trim();
+    var cmp;
+    if (_ISO_DATE.test(aVal) && _ISO_DATE.test(bVal)) {
+      cmp = aVal.localeCompare(bVal);
+    } else {
+      var aNum = parseFloat(aVal), bNum = parseFloat(bVal);
+      cmp = (!isNaN(aNum) && !isNaN(bNum)) ? (aNum - bNum) : aVal.localeCompare(bVal);
+    }
+    return cmp * dir;
+  });
+  rows.forEach(function(r) { tbody.appendChild(r); });
+}
+
 (function () {
   var table = document.getElementById('bills-table');
   if (!table) return;
-  var sortCol = -1, sortDir = 1;
   table.querySelectorAll('th.sortable').forEach(function(th) {
-    th.addEventListener('click', function() {
+    function activate() {
       var col = parseInt(th.dataset.col);
-      if (sortCol === col) { sortDir *= -1; } else { sortCol = col; sortDir = 1; }
-      table.querySelectorAll('th.sortable').forEach(function(h) { h.classList.remove('asc', 'desc'); });
-      th.classList.add(sortDir === 1 ? 'asc' : 'desc');
-      var tbody = table.querySelector('tbody');
-      var rows = Array.from(tbody.querySelectorAll('tr'));
-      rows.sort(function(a, b) {
-        var aCell = a.cells[col], bCell = b.cells[col];
-        var aVal = (aCell.dataset.val !== undefined) ? aCell.dataset.val : aCell.textContent.trim();
-        var bVal = (bCell.dataset.val !== undefined) ? bCell.dataset.val : bCell.textContent.trim();
-        var aNum = parseFloat(aVal), bNum = parseFloat(bVal);
-        var cmp = (!isNaN(aNum) && !isNaN(bNum)) ? (aNum - bNum) : aVal.localeCompare(bVal);
-        return cmp * sortDir;
-      });
-      rows.forEach(function(r) { tbody.appendChild(r); });
+      var dir = (_sortCol === col) ? _sortDir * -1 : 1;
+      _applySort(col, dir);
+      _saveState();
+    }
+    th.addEventListener('click', activate);
+    th.addEventListener('keydown', function(e) {
+      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); activate(); }
     });
   });
 })();
 
-// --- Weekday vs day-of-month toggle ---
+// --- Persist search / filter / sort / scroll across auto-reloads ---
+function _saveState() {
+  try {
+    sessionStorage.setItem('bt_state', JSON.stringify({
+      member: _activeMember,
+      type: _activeType,
+      search: (document.getElementById('bill-search') || {value: ''}).value,
+      sortCol: _sortCol,
+      sortDir: _sortDir,
+      scroll: window.scrollY
+    }));
+  } catch (e) { /* ignore */ }
+}
+
+function _restoreState() {
+  var raw;
+  try { raw = sessionStorage.getItem('bt_state'); } catch (e) { return; }
+  if (!raw) return;
+  var s;
+  try { s = JSON.parse(raw); } catch (e) { return; }
+  var search = document.getElementById('bill-search');
+  if (search && s.search) search.value = s.search;
+  if (s.member) filterMember(s.member);
+  if (s.type) filterType(s.type);
+  if (typeof s.sortCol === 'number' && s.sortCol >= 0) _applySort(s.sortCol, s.sortDir || 1);
+  if (typeof s.scroll === 'number' && s.scroll > 0) window.scrollTo(0, s.scroll);
+}
+
+// --- Weekday vs day-of-month toggle + quarterly/annual due-month field ---
 function updateDueField(selectEl) {
-  var isWeekly = selectEl.value === 'weekly';
+  var freq = selectEl.value;
+  var isWeekly = freq === 'weekly';
   var container = selectEl.closest('dialog') || selectEl.closest('form') || document;
   var numInput = container.querySelector('.due-day-number');
   var wdSelect = container.querySelector('.due-day-weekday');
   var label = container.querySelector('.due-label');
-  if (!numInput || !wdSelect) return;
-  if (isWeekly) {
-    numInput.style.display = 'none'; numInput.disabled = true;
-    wdSelect.style.display = ''; wdSelect.disabled = false;
-    if (label) label.textContent = 'Day of week';
-  } else {
-    numInput.style.display = ''; numInput.disabled = false;
-    wdSelect.style.display = 'none'; wdSelect.disabled = true;
-    if (label) label.textContent = 'Due day of month';
+  if (numInput && wdSelect) {
+    if (isWeekly) {
+      numInput.style.display = 'none'; numInput.disabled = true;
+      wdSelect.style.display = ''; wdSelect.disabled = false;
+      if (label) label.textContent = 'Day of week';
+    } else {
+      numInput.style.display = ''; numInput.disabled = false;
+      wdSelect.style.display = 'none'; wdSelect.disabled = true;
+      if (label) label.textContent = 'Due day of month';
+    }
+  }
+  // Due-month field only applies to quarterly/annual bills
+  var monthField = container.querySelector('.due-month-field');
+  var monthSelect = container.querySelector('.due-month-select');
+  if (monthField && monthSelect) {
+    var showMonth = (freq === 'quarterly' || freq === 'annual');
+    monthField.style.display = showMonth ? '' : 'none';
+    monthSelect.disabled = !showMonth;
   }
 }
 document.querySelectorAll('.freq-select').forEach(function(sel) {
@@ -700,11 +873,12 @@ document.querySelectorAll('.freq-select').forEach(function(sel) {
 {% if edit_bill_id is defined %}
 (function() {
   var dlg = document.getElementById('edit-{{ edit_bill_id }}');
-  if (dlg) { dlg.showModal(); suppressRefresh(); }
+  if (dlg) dlg.showModal();
 })();
 {% endif %}
 
-// Populate type chart on initial load
+// Restore persisted search/filter/sort/scroll, then populate the type chart
+_restoreState();
 _updateTypeChart();
 </script>
 

@@ -27,15 +27,17 @@ async def send_alert(title: str, message: str, priority: str = "default") -> Non
         logger.warning("Failed to send ntfy alert: %s", exc)
 
 
-async def alert_upcoming_bill(name: str, amount: float, days_until: int) -> None:
-    if days_until == 0:
-        title = f"Bill due today: {name}"
-        priority = "high"
-    else:
-        title = f"Bill due in {days_until} day{'s' if days_until != 1 else ''}: {name}"
+async def alert_upcoming_bill(
+    name: str, amount: float, days_until: int, auto_pay: bool = False
+) -> None:
+    when = "today" if days_until == 0 else f"in {days_until} day{'s' if days_until != 1 else ''}"
+    if auto_pay:
+        title = f"Auto-pay {when}: {name}"
+        detail = "will be paid automatically"
         priority = "default"
-    message = (
-        f"{name} — {settings.currency_symbol}{amount:.2f} due "
-        f"{'today' if days_until == 0 else f'in {days_until} days'}"
-    )
+    else:
+        title = f"Bill due {when}: {name}"
+        detail = f"due {when}"
+        priority = "high" if days_until == 0 else "default"
+    message = f"{name} — {settings.currency_symbol}{amount:.2f} {detail}"
     await send_alert(title, message, priority)
