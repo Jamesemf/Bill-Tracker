@@ -1,5 +1,6 @@
 # Database — contains personal financial data
 bills.db
+screenshots
 
 # Python
 __pycache__/
