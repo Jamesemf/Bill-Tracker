@@ -59,6 +59,22 @@ def init_db() -> None:
                 amount_paid REAL    NOT NULL
             );
         """)
+        # Savings pots: a balance on a date, a monthly payment in, and an
+        # interest rate (AER, %). See the "Savings" helpers below.
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS savings (
+                id           INTEGER PRIMARY KEY AUTOINCREMENT,
+                name         TEXT    NOT NULL,
+                category     TEXT    NOT NULL,
+                monthly      REAL    NOT NULL DEFAULT 0,
+                rate         REAL    NOT NULL DEFAULT 0,
+                balance      REAL    NOT NULL DEFAULT 0,
+                balance_date TEXT    NOT NULL DEFAULT (date('now')),
+                notes        TEXT,
+                created_at   TEXT    NOT NULL DEFAULT (date('now'))
+            )
+        """)
+
         for migration in [
             "ALTER TABLE bills ADD COLUMN url TEXT",
             "ALTER TABLE bills ADD COLUMN auto_pay INTEGER NOT NULL DEFAULT 0",
@@ -461,3 +477,68 @@ def loan_payoff(
             break
         due = next_due_date(bill_row, due + timedelta(days=1))
     return left, due, final
+
+
+# --- Savings -----------------------------------------------------------------
+#
+# A savings pot is a balance on a date, a regular monthly payment in, and an
+# interest rate (AER). Nothing is logged: the balance is estimated forward from
+# the date it was entered, then projected on from today. Each month the payment
+# goes in at the start and that month's interest is added at the end, using
+# the monthly equivalent of the AER. The rate is assumed not to change.
+
+SAVINGS_MAX_YEARS = 40
+
+
+def monthly_rate(aer_percent: float) -> float:
+    """Monthly interest rate equivalent to an annual AER (in percent)."""
+    return (1 + aer_percent / 100) ** (1 / 12) - 1
+
+
+def months_between(start: date, end: date) -> int:
+    """Whole months from start to end (0 if end is before start)."""
+    months = (end.year - start.year) * 12 + (end.month - start.month)
+    if end.day < start.day:
+        months -= 1
+    return max(0, months)
+
+
+def grow_savings(balance: float, monthly: float, aer_percent: float, months: int) -> list[float]:
+    """Balance after each month, starting with ``balance`` at index 0."""
+    rate = monthly_rate(aer_percent)
+    series = [balance]
+    for _ in range(months):
+        balance = (balance + monthly) * (1 + rate)
+        series.append(balance)
+    return series
+
+
+def savings_estimate(row: sqlite3.Row, today: date) -> float:
+    """Estimated balance today: the entered balance grown by the months since."""
+    try:
+        since = date.fromisoformat(str(row["balance_date"])[:10])
+    except ValueError:
+        since = today
+    months = months_between(since, today)
+    return round(grow_savings(row["balance"], row["monthly"], row["rate"], months)[-1], 2)
+
+
+def savings_projection(row: sqlite3.Row, today: date, years: int = SAVINGS_MAX_YEARS) -> dict:
+    """Today's estimated balance and the month-by-month balance from here."""
+    now = savings_estimate(row, today)
+    series = grow_savings(now, row["monthly"], row["rate"], years * 12)
+    return {"now": now, "series": [round(v, 2) for v in series]}
+
+
+def savings_outcome(projection: dict, monthly: float, years: int) -> dict:
+    """Where a projection ends up after ``years``: the total, how much of it
+    is new money paid in, and how much is interest."""
+    series = projection["series"]
+    months = min(years * 12, len(series) - 1)
+    total = series[months]
+    paid_in = round(monthly * months, 2)
+    return {
+        "total": total,
+        "paid_in": paid_in,
+        "interest": max(0.0, round(total - projection["now"] - paid_in, 2)),
+    }
