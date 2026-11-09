@@ -27,6 +27,9 @@ from app.models import (
     overdue_bill_ids,
     paid_period_start,
     previous_due_date,
+    savings_estimate,
+    savings_outcome,
+    savings_projection,
 )
 
 templates = Jinja2Templates(directory=Path(__file__).parent / "templates")
@@ -41,6 +44,10 @@ MEMBER_SLOTS = {c: i % SERIES_SLOTS for i, c in enumerate(CATEGORIES)}
 
 # How far ahead the "Coming up" card looks.
 COMING_UP_DAYS = 7
+
+# Time frames offered for savings projections, and the one shown first.
+SAVINGS_YEAR_CHOICES = (1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 15, 20, 25, 30, 40)
+SAVINGS_DEFAULT_YEARS = 5
 
 DEFAULT_CATEGORY = CATEGORIES[0]
 DEFAULT_BILL_TYPE = BILL_TYPES[-1]
@@ -165,7 +172,23 @@ def _dashboard_context(today: date, conn, edit_bill_id: int | None = None) -> di
         loans.append((b, info))
     loans.sort(key=lambda entry: (entry[1]["remaining"] <= 0, -entry[1]["remaining"]))
 
+    # Savings: today's estimate plus a month-by-month projection the page
+    # reads for whichever time frame is picked (the default is rendered here).
+    savings = []
+    for s in conn.execute("SELECT * FROM savings ORDER BY id").fetchall():
+        projection = savings_projection(s, today)
+        projection["default"] = savings_outcome(projection, s["monthly"], SAVINGS_DEFAULT_YEARS)
+        savings.append((s, projection))
+
     ctx = {
+        "savings": savings,
+        "savings_data": [
+            {"monthly": s["monthly"], "now": p["now"], "series": p["series"]} for s, p in savings
+        ],
+        "savings_monthly": round(sum(s["monthly"] for s, _ in savings), 2),
+        "savings_default_total": round(sum(p["default"]["total"] for _, p in savings), 2),
+        "savings_years": SAVINGS_YEAR_CHOICES,
+        "savings_default_years": SAVINGS_DEFAULT_YEARS,
         "loans": loans,
         "loan_info": {b["id"]: info for b, info in loans},
         "loans_remaining": round(sum(info["remaining"] for _, info in loans), 2),
@@ -424,6 +447,93 @@ async def delete_payment(payment_id: int):
     return RedirectResponse("/", status_code=303)
 
 
+# --- Savings -------------------------------------------------------------------
+
+def _validate_savings_form(name: str, category: str, monthly: float, rate: float, balance: float) -> None:
+    if not name or not name.strip():
+        raise HTTPException(status_code=400, detail="Name is required")
+    if category and category not in CATEGORIES:
+        raise HTTPException(status_code=400, detail="Invalid member")
+    if not all(math.isfinite(v) for v in (monthly, rate, balance)):
+        raise HTTPException(status_code=400, detail="Amounts must be numbers")
+    if monthly < 0:
+        raise HTTPException(status_code=400, detail="Monthly payment can't be negative")
+    if balance < 0:
+        raise HTTPException(status_code=400, detail="Saved so far can't be negative")
+    if not 0 <= rate <= 100:
+        raise HTTPException(status_code=400, detail="Interest rate must be between 0 and 100%")
+
+
+@router.post("/savings/add")
+async def add_savings(
+    name: str = Form(...),
+    category: str = Form(""),
+    monthly: float = Form(...),
+    rate: float = Form(0.0),
+    balance: float = Form(0.0),
+    notes: str = Form(""),
+):
+    _validate_savings_form(name, category, monthly, rate, balance)
+    with db() as conn:
+        conn.execute(
+            "INSERT INTO savings (name, category, monthly, rate, balance, balance_date, notes) "
+            "VALUES (?,?,?,?,?,?,?)",
+            (
+                name.strip(),
+                category or DEFAULT_CATEGORY,
+                round(monthly, 2),
+                rate,
+                round(balance, 2),
+                date.today().isoformat(),
+                notes or None,
+            ),
+        )
+    return RedirectResponse("/", status_code=303)
+
+
+@router.post("/savings/{saving_id}/edit")
+async def edit_savings(
+    saving_id: int,
+    name: str = Form(...),
+    category: str = Form(""),
+    monthly: float = Form(...),
+    rate: float = Form(0.0),
+    balance: float = Form(0.0),
+    notes: str = Form(""),
+):
+    _validate_savings_form(name, category, monthly, rate, balance)
+    today = date.today()
+    with db() as conn:
+        row = conn.execute("SELECT * FROM savings WHERE id = ?", (saving_id,)).fetchone()
+        if not row:
+            raise HTTPException(status_code=404)
+        conn.execute(
+            "UPDATE savings SET name = ?, category = ?, notes = ? WHERE id = ?",
+            (name.strip(), category or DEFAULT_CATEGORY, notes or None, saving_id),
+        )
+        # The form shows today's estimate. If that, the payment and the rate
+        # are all unchanged, keep the original anchor so the estimate carries
+        # on as before; otherwise start again from today with the new figures.
+        unchanged = (
+            abs(savings_estimate(row, today) - balance) < 0.005
+            and abs(row["monthly"] - monthly) < 0.005
+            and abs(row["rate"] - rate) < 1e-9
+        )
+        if not unchanged:
+            conn.execute(
+                "UPDATE savings SET monthly = ?, rate = ?, balance = ?, balance_date = ? WHERE id = ?",
+                (round(monthly, 2), rate, round(balance, 2), today.isoformat(), saving_id),
+            )
+    return RedirectResponse("/", status_code=303)
+
+
+@router.post("/savings/{saving_id}/delete")
+async def delete_savings(saving_id: int):
+    with db() as conn:
+        conn.execute("DELETE FROM savings WHERE id = ?", (saving_id,))
+    return RedirectResponse("/", status_code=303)
+
+
 @router.get("/export/csv")
 async def export_csv():
     with db() as conn:
@@ -488,9 +598,19 @@ async def api_summary():
         ann = annual_total(conn)
         count = conn.execute("SELECT COUNT(*) FROM bills WHERE active = 1").fetchone()[0]
         loans_left = sum(info["remaining"] for info in loan_balances(conn).values())
+        savings_monthly = conn.execute("SELECT COALESCE(SUM(monthly), 0) FROM savings").fetchone()[0]
     return {
         "monthly_total": total,
         "annual_total": ann,
         "active_bills": count,
         "loans_remaining": round(loans_left, 2),
+        "savings_monthly": round(savings_monthly, 2),
     }
+
+
+@router.get("/api/savings")
+async def api_savings():
+    today = date.today()
+    with db() as conn:
+        rows = conn.execute("SELECT * FROM savings ORDER BY id").fetchall()
+    return [{**dict(r), "balance_now": savings_estimate(r, today)} for r in rows]

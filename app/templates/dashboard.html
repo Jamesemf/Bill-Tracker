@@ -106,7 +106,7 @@
                    gap: 12px; margin-bottom: 20px; }
     .page-header h1 { font-size: 20px; font-weight: 600; letter-spacing: -0.01em; line-height: 1.3; }
     .subtitle { margin-top: 2px; color: var(--ink-2); }
-    .header-actions { display: flex; gap: 8px; }
+    .header-actions { display: flex; flex-wrap: wrap; gap: 8px; }
 
     /* Buttons */
     .btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px;
@@ -174,6 +174,21 @@
                   font-variant-numeric: tabular-nums; }
     .loan-value .unit { font-size: 13px; font-weight: 400; letter-spacing: 0; }
     .loan-line { font-size: 13px; color: var(--ink-2); font-variant-numeric: tabular-nums; }
+
+    /* Savings */
+    .section-head.with-control { align-items: flex-end; }
+    .horizon { display: inline-flex; align-items: center; gap: 8px; font-size: 13px; color: var(--ink-2); }
+    .loan-head-right { display: flex; align-items: center; gap: 4px; flex-shrink: 0; }
+    .loan-head-right .btn { margin-right: -8px; }
+    .spark { display: block; width: 100%; height: 56px; overflow: visible; }
+    .spark path { fill: none; stroke-width: 2; stroke-linejoin: round; stroke-linecap: round;
+                  vector-effect: non-scaling-stroke; }
+    .spark .spark-total { stroke: var(--key); }
+    .spark .spark-paid  { stroke: var(--muted); stroke-width: 1.5; stroke-dasharray: 4 4; }
+    .split { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+    .split dt { font-size: 12px; color: var(--muted); }
+    .split dd { font-size: 13px; font-variant-numeric: tabular-nums; white-space: nowrap; }
+    .footnote { margin-top: 8px; font-size: 12px; color: var(--muted); }
 
     /* Toolbar */
     .toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-bottom: 12px; }
@@ -348,6 +363,40 @@
 {%- endif -%}
 {%- endmacro %}
 
+{# Savings form fields, shared by the add and edit dialogs. #}
+{% macro saving_fields(s=none, now=none) -%}
+    <label class="field">
+      <span>Name</span>
+      <input class="input" name="name" required value="{{ s.name if s else '' }}" placeholder="Holiday fund">
+    </label>
+    <label class="field">
+      <span>Member</span>
+      <select class="input" name="category">
+        {% for c in categories %}<option value="{{ c }}" {{ 'selected' if s and s.category == c }}>{{ c | title }}</option>{% endfor %}
+      </select>
+    </label>
+    <label class="field">
+      <span>Paid in each month ({{ currency }})</span>
+      <input class="input" name="monthly" type="number" step="0.01" min="0" required
+             value="{{ '%.2f'|format(s.monthly) if s else '' }}" placeholder="200.00">
+    </label>
+    <label class="field">
+      <span>Interest rate (AER %)</span>
+      <input class="input" name="rate" type="number" step="any" min="0" max="100" required
+             value="{{ '%g'|format(s.rate) if s else '' }}" placeholder="4.5">
+    </label>
+    <label class="field full">
+      <span>Saved so far ({{ currency }})</span>
+      <input class="input" name="balance" type="number" step="0.01" min="0" required
+             value="{{ '%.2f'|format(now) if s else '0.00' }}">
+      <span class="hint">What's in the account today. It's estimated forward each month from your payments and interest, so update it from a statement whenever you like.</span>
+    </label>
+    <label class="field full">
+      <span>Notes</span>
+      <input class="input" name="notes" value="{{ (s.notes or '') if s else '' }}" placeholder="Optional">
+    </label>
+{%- endmacro %}
+
 {# Bill status. compact=True (Coming up) shows only paid / scheduled, since the
    due text there already says late or soon. #}
 {% macro status(b, compact=false) -%}
@@ -374,7 +423,8 @@
     <p class="subtitle">{{ today_label }}</p>
   </div>
   <div class="header-actions">
-    <a href="/export/csv" class="btn btn-secondary">Export CSV</a>
+    <a href="/export/csv" class="btn btn-ghost">Export CSV</a>
+    <button type="button" class="btn btn-secondary" onclick="document.getElementById('add-saving-dialog').showModal()">Add savings</button>
     <button type="button" class="btn btn-primary" onclick="document.getElementById('add-dialog').showModal()">Add bill</button>
   </div>
 </header>
@@ -448,6 +498,47 @@
     </article>
     {% endfor %}
   </div>
+</section>
+{% endif %}
+
+{% if savings %}
+<section class="section" aria-labelledby="savings-title">
+  <div class="section-head with-control">
+    <div>
+      <h2 id="savings-title">Savings</h2>
+      <p id="savings-summary">{{ savings_monthly | money }} a month &middot; {{ savings_default_total | money }} in {{ savings_default_years }} years</p>
+    </div>
+    <label class="horizon">Over
+      <select id="savings-years" class="input select-sm" onchange="setSavingsYears(this.value)">
+        {% for y in savings_years %}<option value="{{ y }}" {{ 'selected' if y == savings_default_years }}>{{ y }} year{{ '' if y == 1 else 's' }}</option>{% endfor %}
+      </select>
+    </label>
+  </div>
+  <div class="loan-grid">
+    {% for s, p in savings %}
+    <article class="card loan" style="--key:{{ key_color(s.category) }}" data-saving="{{ loop.index0 }}">
+      <div class="loan-head">
+        <h3 class="truncate">{{ s.name }}</h3>
+        <div class="loan-head-right">
+          {{ key(s.category) }}
+          <button type="button" class="btn btn-ghost btn-sm" aria-label="Edit {{ s.name }}" onclick="openSaving({{ s.id }})">Edit</button>
+        </div>
+      </div>
+      <div class="loan-value"><span class="js-total">{{ p.default.total | money }}</span><span class="unit js-when"> in {{ savings_default_years }} years</span></div>
+      <svg class="spark" viewBox="0 0 300 56" preserveAspectRatio="none" aria-hidden="true">
+        <path class="spark-paid"></path>
+        <path class="spark-total"></path>
+      </svg>
+      <dl class="split">
+        <div><dt>Now</dt><dd>{{ p.now | money }}</dd></div>
+        <div><dt>Paid in</dt><dd class="js-paid">{{ p.default.paid_in | money }}</dd></div>
+        <div><dt>Interest</dt><dd class="js-interest">{{ p.default.interest | money }}</dd></div>
+      </dl>
+      <p class="loan-line">{{ s.monthly | money }} a month &middot; {% if s.rate %}{{ '%g'|format(s.rate) }}% AER{% else %}no interest{% endif %}{% if s.notes %} &middot; {{ s.notes }}{% endif %}</p>
+    </article>
+    {% endfor %}
+  </div>
+  <p class="footnote">The dashed line is what you'd have without interest. Projections assume the rate stays the same, with interest added monthly and before any tax.</p>
 </section>
 {% endif %}
 
@@ -799,9 +890,49 @@
   </form>
 </dialog>
 
+{# Savings dialogs — one per pot, plus "Add savings" #}
+{% for s, p in savings %}
+<dialog id="saving-{{ s.id }}" class="modal" aria-labelledby="saving-title-{{ s.id }}">
+  <div class="modal-head">
+    <h2 id="saving-title-{{ s.id }}">Edit savings</h2>
+    <button type="button" class="btn btn-ghost btn-sm" aria-label="Close" onclick="this.closest('dialog').close()">&#10005;</button>
+  </div>
+  <form method="post" action="/savings/{{ s.id }}/edit" class="form-grid">
+    {{ saving_fields(s, p.now) }}
+    <div class="form-actions">
+      <button type="button" class="btn btn-secondary" onclick="this.closest('dialog').close()">Cancel</button>
+      <button type="submit" class="btn btn-primary">Save changes</button>
+    </div>
+  </form>
+  <div class="modal-foot">
+    <span></span>
+    <form method="post" action="/savings/{{ s.id }}/delete"
+          data-name="{{ s.name }}"
+          onsubmit="return confirm('Delete ' + this.dataset.name + '?')">
+      <button class="btn btn-danger btn-sm">Delete savings</button>
+    </form>
+  </div>
+</dialog>
+{% endfor %}
+
+<dialog id="add-saving-dialog" class="modal" aria-labelledby="add-saving-title">
+  <div class="modal-head">
+    <h2 id="add-saving-title">Add savings</h2>
+    <button type="button" class="btn btn-ghost btn-sm" aria-label="Close" onclick="this.closest('dialog').close()">&#10005;</button>
+  </div>
+  <form method="post" action="/savings/add" class="form-grid">
+    {{ saving_fields() }}
+    <div class="form-actions">
+      <button type="button" class="btn btn-secondary" onclick="this.closest('dialog').close()">Cancel</button>
+      <button type="submit" class="btn btn-primary">Add savings</button>
+    </div>
+  </form>
+</dialog>
+
 <script>
 var CURRENCY = {{ currency | tojson }};
 var MEMBER_SLOTS = {{ member_slots | tojson }};
+var SAVINGS = {{ savings_data | tojson }};
 var _numFmt = new Intl.NumberFormat('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
 function _money(v) { return CURRENCY + _numFmt.format(v); }
@@ -883,6 +1014,66 @@ function _renderSpendChart() {
       '<span class="bar-value">' + _esc(_money(val)) + '<span class="unit"> / mo</span></span>' +
       '<span class="bar-share">' + Math.round(val / sum * 100) + '%</span></div>';
   }).join('');
+}
+
+// --- Savings projections (series are computed server-side, month by month) ---
+var _savingsYears = {{ savings_default_years }};
+
+function _years(y) { return y + (y === 1 ? ' year' : ' years'); }
+
+function setSavingsYears(value) {
+  var y = parseInt(value, 10);
+  var sel = document.getElementById('savings-years');
+  if (sel) {
+    sel.value = String(y);
+    if (sel.value !== String(y)) { y = {{ savings_default_years }}; sel.value = String(y); }
+  }
+  _savingsYears = y || {{ savings_default_years }};
+  _renderSavings();
+  _saveState();
+}
+
+function _drawSpark(svg, s, n) {
+  if (!svg) return;
+  var step = Math.max(1, Math.ceil(n / 120)), pts = [];
+  for (var k = 0; k < n; k += step) pts.push(k);
+  pts.push(n);
+  var min = s.now, max = Math.max(s.series[n], s.now + s.monthly * n);
+  var span = (max - min) || 1;
+  function path(valueAt) {
+    return pts.map(function(k, i) {
+      var x = n ? (k / n) * 300 : 0;
+      var y = 54 - ((valueAt(k) - min) / span) * 50;
+      return (i ? 'L' : 'M') + x.toFixed(1) + ' ' + y.toFixed(1);
+    }).join(' ');
+  }
+  svg.querySelector('.spark-paid').setAttribute('d', path(function(k) { return s.now + s.monthly * k; }));
+  svg.querySelector('.spark-total').setAttribute('d', path(function(k) { return s.series[k]; }));
+}
+
+function _renderSavings() {
+  var months = _savingsYears * 12, total = 0, monthly = 0;
+  document.querySelectorAll('[data-saving]').forEach(function(card) {
+    var s = SAVINGS[parseInt(card.dataset.saving, 10)];
+    if (!s) return;
+    var n = Math.min(months, s.series.length - 1);
+    var end = s.series[n], paid = Math.round(s.monthly * n * 100) / 100;
+    var interest = Math.max(0, end - s.now - paid);
+    total += end;
+    monthly += s.monthly;
+    card.querySelector('.js-total').textContent = _money(end);
+    card.querySelector('.js-when').textContent = ' in ' + _years(_savingsYears);
+    card.querySelector('.js-paid').textContent = _money(paid);
+    card.querySelector('.js-interest').textContent = _money(interest);
+    _drawSpark(card.querySelector('svg.spark'), s, n);
+  });
+  var summary = document.getElementById('savings-summary');
+  if (summary) summary.textContent = _money(monthly) + ' a month · ' + _money(total) + ' in ' + _years(_savingsYears);
+}
+
+function openSaving(id) {
+  var dlg = document.getElementById('saving-' + id);
+  if (dlg) dlg.showModal();
 }
 
 // --- Mark paid ---
@@ -1043,6 +1234,7 @@ function _saveState() {
       sortCol: _sortCol,
       sortDir: _sortDir,
       chart: _chartView,
+      savingsYears: _savingsYears,
       scroll: window.scrollY
     }));
   } catch (e) { /* ignore */ }
@@ -1059,6 +1251,7 @@ function _restoreState() {
   if (s.member) filterMember(s.member);
   if (s.type) filterType(s.type);
   if (s.chart) setChartView(s.chart);
+  if (s.savingsYears) setSavingsYears(s.savingsYears);
   if (typeof s.sortCol === 'number' && s.sortCol >= 0) _applySort(s.sortCol, s.sortDir || 1);
   if (typeof s.scroll === 'number' && s.scroll > 0) window.scrollTo(0, s.scroll);
 }
@@ -1115,9 +1308,10 @@ document.querySelectorAll('.loan-toggle').forEach(function(cb) {
 })();
 {% endif %}
 
-// Restore persisted search/filter/sort/scroll, then draw the chart
+// Restore persisted search/filter/sort/scroll, then draw the charts
 _restoreState();
 _renderSpendChart();
+_renderSavings();
 </script>
 
 </body>
