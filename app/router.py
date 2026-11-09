@@ -205,6 +205,7 @@ def _dashboard_context(today: date, conn, edit_bill_id: int | None = None) -> di
         "days_until": days_until,
         "due_soon_ids": due_soon_ids,
         "paid_ids": paid_ids,
+        "last_paid": last_paid,
         "overdue_ids": overdue,
         "bill_types": BILL_TYPES,
         "frequencies": FREQUENCIES,
