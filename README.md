@@ -10,6 +10,7 @@ A lightweight, self-hosted web app for tracking household bills and subscription
 - **Monthly & annual estimates** — live totals that update as you filter
 - **Overdue detection** — unpaid bills past their due date are flagged automatically
 - **Auto-pay support** — mark bills as direct debit and payments are logged automatically on the due date
+- **Loan tracking** — mark a bill as a loan and enter what's left to repay; every payment logged against it (including auto-paid direct debits) comes off the balance, with payments left, a projected payoff date, and the loan switching itself off once it's repaid
 - **Duplicate-payment guard** — bills already paid this month can't be accidentally paid twice
 - **Push alerts** — daily notifications via [ntfy](https://ntfy.sh) for bills due within a configurable window
 - **Payment history** — recent payments with one-click undo
@@ -95,7 +96,7 @@ Simple JSON endpoints for scripting and integrations:
 | Endpoint | Description |
 |---|---|
 | `GET /api/bills` | All bills as a JSON array. |
-| `GET /api/summary` | Monthly total, annual total, and active bill count. |
+| `GET /api/summary` | Monthly total, annual total, active bill count, and total left to repay on loans. |
 | `GET /export/csv` | Download all bills as CSV. |
 | `GET /test-alert` | Send a test push notification. |
 
