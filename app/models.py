@@ -1,4 +1,5 @@
 import calendar
+import math
 import os
 import sqlite3
 from contextlib import contextmanager
@@ -63,6 +64,11 @@ def init_db() -> None:
             "ALTER TABLE bills ADD COLUMN auto_pay INTEGER NOT NULL DEFAULT 0",
             "ALTER TABLE bills ADD COLUMN bill_type TEXT NOT NULL DEFAULT 'other'",
             "ALTER TABLE bills ADD COLUMN due_month INTEGER",
+            # Loans: loan_balance is what was left to repay when tracking
+            # started (or was last corrected). Payments with an id above
+            # loan_baseline count against it. NULL loan_balance = not a loan.
+            "ALTER TABLE bills ADD COLUMN loan_balance REAL",
+            "ALTER TABLE bills ADD COLUMN loan_baseline INTEGER NOT NULL DEFAULT 0",
         ]:
             try:
                 conn.execute(migration)
@@ -367,3 +373,91 @@ def category_monthly_totals(conn: sqlite3.Connection) -> dict[str, float]:
         cat = row["category"]
         totals[cat] = round(totals.get(cat, 0.0) + monthly, 2)
     return totals
+
+
+# --- Loans -------------------------------------------------------------------
+#
+# A loan is a bill with a balance. The balance isn't stored as a running total:
+# it's loan_balance minus the payments logged for the bill since it was set
+# (payment ids above loan_baseline). Logging a payment (by hand or by auto-pay)
+# brings it down, and undoing one puts it back, with nothing else to update.
+
+
+def latest_payment_id(conn: sqlite3.Connection) -> int:
+    """Highest payment id so far; a new or corrected balance counts payments after it."""
+    return conn.execute("SELECT COALESCE(MAX(id), 0) FROM payment_history").fetchone()[0]
+
+
+def loan_balances(conn: sqlite3.Connection, bill_id: int | None = None) -> dict[int, dict]:
+    """Balance details for loan bills, keyed by bill id.
+
+    ``start`` is what was left to repay when tracking began (or was last
+    corrected), ``repaid`` is what has been paid since, and ``remaining`` is
+    the difference (never below zero).
+    """
+    sql = (
+        "SELECT b.id, b.loan_balance, COALESCE(SUM(ph.amount_paid), 0) AS repaid "
+        "FROM bills b LEFT JOIN payment_history ph "
+        "ON ph.bill_id = b.id AND ph.id > b.loan_baseline "
+        "WHERE b.loan_balance IS NOT NULL"
+    )
+    params: tuple = ()
+    if bill_id is not None:
+        sql += " AND b.id = ?"
+        params = (bill_id,)
+    sql += " GROUP BY b.id"
+    balances = {}
+    for row in conn.execute(sql, params).fetchall():
+        start = round(row["loan_balance"], 2)
+        repaid = round(row["repaid"], 2)
+        balances[row["id"]] = {
+            "start": start,
+            "repaid": repaid,
+            "remaining": max(0.0, round(start - repaid, 2)),
+        }
+    return balances
+
+
+def loan_remaining(conn: sqlite3.Connection, bill_id: int) -> float | None:
+    """What's left to repay on a loan, or None if the bill isn't a loan."""
+    info = loan_balances(conn, bill_id).get(bill_id)
+    return info["remaining"] if info else None
+
+
+def close_loan_if_repaid(conn: sqlite3.Connection, bill_id: int) -> bool:
+    """Disable a loan once nothing is left to repay, so it drops out of the
+    totals and auto-pay stops logging payments. Returns True if it was closed."""
+    remaining = loan_remaining(conn, bill_id)
+    if remaining is not None and remaining <= 0:
+        conn.execute("UPDATE bills SET active = 0 WHERE id = ?", (bill_id,))
+        return True
+    return False
+
+
+def loan_payoff(
+    bill_row: sqlite3.Row, remaining: float, today: date, paid_this_period: bool
+) -> tuple[int, date | None, float]:
+    """Project the rest of a loan at the bill's regular amount.
+
+    Returns (payments left, date of the last one, amount of the last one). The
+    last payment is whatever is left over, so it can be smaller than the rest.
+    When this period's payment has already been made, the next occurrence in
+    the same period doesn't count.
+    """
+    amount = bill_row["amount"]
+    if remaining <= 0 or amount <= 0:
+        return 0, None, 0.0
+    left = math.ceil(round(remaining / amount, 6))
+    final = round(remaining - (left - 1) * amount, 2)
+    if bill_row["frequency"] == "one-off":
+        return left, None, final
+    due = next_due_date(bill_row, today)
+    if due is None:
+        return left, None, final
+    if paid_this_period and paid_period_start(bill_row, due) == paid_period_start(bill_row, today):
+        due = next_due_date(bill_row, due + timedelta(days=1))
+    for _ in range(min(left, 5000) - 1):
+        if due is None:
+            break
+        due = next_due_date(bill_row, due + timedelta(days=1))
+    return left, due, final

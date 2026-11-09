@@ -4,7 +4,14 @@ from datetime import date, datetime, timedelta
 
 from app.alerts import alert_upcoming_bill
 from app.config import settings
-from app.models import bills_due_within, db, paid_period_start, previous_due_date
+from app.models import (
+    bills_due_within,
+    close_loan_if_repaid,
+    db,
+    loan_remaining,
+    paid_period_start,
+    previous_due_date,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -46,14 +53,25 @@ async def _auto_log_payments() -> None:
                 ).fetchone()
                 if already:
                     continue
+            amount = row["amount"]
+            # Loans: the final payment is only what's left, and a repaid loan
+            # is closed rather than paid again.
+            remaining = loan_remaining(conn, row["id"])
+            if remaining is not None:
+                if remaining <= 0:
+                    close_loan_if_repaid(conn, row["id"])
+                    continue
+                amount = min(amount, remaining)
             conn.execute(
                 "INSERT OR IGNORE INTO payment_history (bill_id, paid_date, amount_paid) VALUES (?, ?, ?)",
-                (row["id"], prev.isoformat(), row["amount"]),
+                (row["id"], prev.isoformat(), amount),
             )
             logger.info(
                 "Auto-logged payment for %s (%s%.2f) on %s",
-                row["name"], settings.currency_symbol, row["amount"], prev.isoformat(),
+                row["name"], settings.currency_symbol, amount, prev.isoformat(),
             )
+            if remaining is not None and close_loan_if_repaid(conn, row["id"]):
+                logger.info("Loan %s is fully repaid; bill disabled", row["name"])
 
 
 def _seconds_until_next_run(hour: int) -> float:

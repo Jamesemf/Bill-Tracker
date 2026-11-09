@@ -166,3 +166,37 @@ def test_dashboard_escapes_bill_name(client, make_bill):
     # but the bill did render (name HTML-escaped inside a data attribute)
     assert "alert(1)" in html
     assert 'data-name="x' in html
+
+
+# --- Dashboard: "Coming up" and overdue dates ------------------------------
+
+def test_coming_up_lists_overdue_first_then_soonest(make_bill):
+    from datetime import date
+
+    from app.router import _dashboard_context, templates
+
+    today = date(2026, 7, 8)
+    water = make_bill(name="Water", due_day=5)        # missed 5 Jul -> overdue
+    ids = [
+        make_bill(name="Broadband", due_day=12),      # in 4 days
+        make_bill(name="Dental", due_day=10),         # in 2 days
+        make_bill(name="Gym", due_day=25),            # outside the 7-day window
+    ]
+    with models.db() as conn:
+        # Everything was paid in June, so only Water's 5 July is outstanding
+        for bid in [water, *ids]:
+            conn.execute(
+                "INSERT INTO payment_history (bill_id, paid_date, amount_paid) VALUES (?, '2026-06-02', 10)",
+                (bid,),
+            )
+        ctx = _dashboard_context(today, conn)
+
+    assert [(b["name"], days) for b, days, _ in ctx["coming_up"]] == [
+        ("Water", -3), ("Dental", 2), ("Broadband", 4),
+    ]
+    assert ctx["overdue_since"][water] == date(2026, 7, 5)
+
+    # The table shows the missed date, not next cycle's "in 28 days"
+    html = templates.get_template("dashboard.html").render(**ctx)
+    assert "3 days late" in html
+    assert "was due 5 Jul" in html

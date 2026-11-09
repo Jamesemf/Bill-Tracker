@@ -1,6 +1,7 @@
 import csv
 import io
-from datetime import date
+import math
+from datetime import date, timedelta
 from pathlib import Path
 from urllib.parse import urlsplit
 
@@ -14,36 +15,62 @@ from app.models import (
     CATEGORIES,
     FREQUENCIES,
     annual_total,
-    bills_due_within,
     category_monthly_totals,
+    close_loan_if_repaid,
     db,
+    latest_payment_id,
+    loan_balances,
+    loan_payoff,
+    loan_remaining,
     monthly_total,
     next_due_date,
     overdue_bill_ids,
     paid_period_start,
+    previous_due_date,
 )
 
 templates = Jinja2Templates(directory=Path(__file__).parent / "templates")
 
 WEEKDAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
 
-# Colours are assigned to members/types by position, cycling if the list is
-# longer than the palette.
-MEMBER_PALETTE = ["#60a5fa", "#34d399", "#a78bfa", "#fbbf24", "#fb7185", "#e879f9", "#2dd4bf", "#f97316"]
-TYPE_PALETTE = ["#67c8e8", "#a78bfa", "#34d399", "#86efac", "#c084fc", "#fdba74", "#7dd3fc", "#94a3b8", "#6b7280", "#f472b6", "#fbbf24"]
+# Members are the only thing on the page that gets a colour. Each one takes a
+# slot in a fixed series palette (light and dark variants are CSS variables in
+# the template, --series-0 … --series-7), cycling if there are more members.
+SERIES_SLOTS = 8
+MEMBER_SLOTS = {c: i % SERIES_SLOTS for i, c in enumerate(CATEGORIES)}
 
-MEMBER_COLORS = {c: MEMBER_PALETTE[i % len(MEMBER_PALETTE)] for i, c in enumerate(CATEGORIES)}
-TYPE_COLORS = {t: TYPE_PALETTE[i % len(TYPE_PALETTE)] for i, t in enumerate(BILL_TYPES)}
+# How far ahead the "Coming up" card looks.
+COMING_UP_DAYS = 7
 
 DEFAULT_CATEGORY = CATEGORIES[0]
 DEFAULT_BILL_TYPE = BILL_TYPES[-1]
 
 
 def _fmt_due(d) -> str:
-    return f"{d.day} {d.strftime('%b')}" if d else "—"
+    """Short date, e.g. "1 Aug". Accepts a date or an ISO date string."""
+    if not d:
+        return "—"
+    if isinstance(d, str):
+        try:
+            d = date.fromisoformat(d[:10])
+        except ValueError:
+            return d
+    return f"{d.day} {d.strftime('%b')}"
+
+
+def _fmt_money(value) -> str:
+    """Currency amount with thousands separators, e.g. "£7,632.36"."""
+    return f"{settings.currency_symbol}{float(value or 0):,.2f}"
+
+
+def _fmt_month_year(d) -> str:
+    """e.g. "Apr 2028"."""
+    return f"{d.strftime('%b')} {d.year}" if d else ""
 
 
 templates.env.filters["due_date"] = _fmt_due
+templates.env.filters["money"] = _fmt_money
+templates.env.filters["month_year"] = _fmt_month_year
 
 router = APIRouter()
 
@@ -57,7 +84,6 @@ def _dashboard_context(today: date, conn, edit_bill_id: int | None = None) -> di
         "JOIN bills b ON b.id = ph.bill_id "
         "ORDER BY ph.paid_date DESC LIMIT 20"
     ).fetchall()
-    upcoming = bills_due_within(conn, 7)
     total = monthly_total(conn)
     ann = annual_total(conn)
     cat_totals = category_monthly_totals(conn)
@@ -94,10 +120,61 @@ def _dashboard_context(today: date, conn, edit_bill_id: int | None = None) -> di
         and b["id"] not in overdue
         and 0 <= days_until.get(b["id"], 999) <= settings.alert_days_before
     }
+    # For overdue bills, the occurrence that was missed (next_dues already
+    # points at the following cycle, which would read as "in 28 days").
+    overdue_since = {
+        b["id"]: previous_due_date(b, today) for b in bills if b["id"] in overdue
+    }
+    # "Coming up": overdue bills first (most late first), then anything due in
+    # the next COMING_UP_DAYS days, soonest first. Each entry is
+    # (bill, days_until, date); days_until is negative for overdue bills.
+    coming_up = [
+        (b, (overdue_since[b["id"]] - today).days, overdue_since[b["id"]])
+        for b in bills
+        if b["id"] in overdue_since and overdue_since[b["id"]]
+    ]
+    coming_up += [
+        (b, days_until[b["id"]], today + timedelta(days=days_until[b["id"]]))
+        for b in bills
+        if b["active"]
+        and b["id"] not in overdue
+        and 0 <= days_until.get(b["id"], 999) <= COMING_UP_DAYS
+    ]
+    coming_up.sort(key=lambda entry: entry[1])
+
+    # Loans: balance, progress and a projection at the regular amount.
+    # Open loans first (most left to repay first), repaid ones last.
+    balances = loan_balances(conn)
+    loans = []
+    for b in bills:
+        info = balances.get(b["id"])
+        if info is None:
+            continue
+        left, last_date, last_amount = (
+            loan_payoff(b, info["remaining"], today, b["id"] in paid_ids)
+            if b["active"] else (0, None, 0.0)
+        )
+        start = info["start"]
+        info.update(
+            payments_left=left,
+            last_date=last_date,
+            last_amount=last_amount,
+            next_amount=min(b["amount"], info["remaining"]) if info["remaining"] > 0 else b["amount"],
+            progress=min(100.0, info["repaid"] / start * 100) if start > 0 else 100.0,
+        )
+        loans.append((b, info))
+    loans.sort(key=lambda entry: (entry[1]["remaining"] <= 0, -entry[1]["remaining"]))
+
     ctx = {
+        "loans": loans,
+        "loan_info": {b["id"]: info for b, info in loans},
+        "loans_remaining": round(sum(info["remaining"] for _, info in loans), 2),
         "bills": bills,
         "history": history,
-        "upcoming": upcoming,
+        "coming_up": coming_up,
+        "coming_up_days": COMING_UP_DAYS,
+        "overdue_since": overdue_since,
+        "late_days": {bid: (today - d).days for bid, d in overdue_since.items() if d},
         "monthly_total": total,
         "annual_total": ann,
         "cat_totals": cat_totals,
@@ -110,11 +187,11 @@ def _dashboard_context(today: date, conn, edit_bill_id: int | None = None) -> di
         "frequencies": FREQUENCIES,
         "categories": CATEGORIES,
         "weekdays": WEEKDAYS,
-        "member_colors": MEMBER_COLORS,
-        "type_colors": TYPE_COLORS,
+        "member_slots": MEMBER_SLOTS,
         "app_title": settings.app_title,
         "currency": settings.currency_symbol,
         "today": today.isoformat(),
+        "today_label": f"{today.strftime('%A')} {today.day} {today.strftime('%B')}",
     }
     if edit_bill_id is not None:
         ctx["edit_bill_id"] = edit_bill_id
@@ -180,6 +257,19 @@ def _validate_bill_form(
     return resolved_month
 
 
+def _parse_loan(is_loan: str, loan_left: str) -> float | None:
+    """The "left to repay" amount for a loan, or None when the bill isn't one."""
+    if not is_loan:
+        return None
+    try:
+        value = float(loan_left)
+    except (TypeError, ValueError):
+        raise HTTPException(status_code=400, detail="Enter how much is left to repay")
+    if not math.isfinite(value) or value < 0:
+        raise HTTPException(status_code=400, detail="Left to repay can't be negative")
+    return round(value, 2)
+
+
 @router.post("/bills/add")
 async def add_bill(
     name: str = Form(...),
@@ -192,13 +282,17 @@ async def add_bill(
     notes: str = Form(""),
     url: str = Form(""),
     due_month: str = Form(""),
+    is_loan: str = Form(""),
+    loan_left: str = Form(""),
 ):
     resolved_month = _validate_bill_form(
         name, amount, due_day, frequency, category, bill_type, url, due_month
     )
+    loan_balance = _parse_loan(is_loan, loan_left)
     with db() as conn:
         conn.execute(
-            "INSERT INTO bills (name, amount, due_day, frequency, category, bill_type, auto_pay, notes, url, due_month) VALUES (?,?,?,?,?,?,?,?,?,?)",
+            "INSERT INTO bills (name, amount, due_day, frequency, category, bill_type, auto_pay, notes, url, due_month, "
+            "loan_balance, loan_baseline) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)",
             (
                 name,
                 amount,
@@ -210,6 +304,8 @@ async def add_bill(
                 notes or None,
                 url or None,
                 resolved_month,
+                loan_balance,
+                latest_payment_id(conn) if loan_balance is not None else 0,
             ),
         )
     return RedirectResponse("/", status_code=303)
@@ -239,14 +335,31 @@ async def edit_bill(
     notes: str = Form(""),
     url: str = Form(""),
     due_month: str = Form(""),
+    is_loan: str = Form(""),
+    loan_left: str = Form(""),
 ):
     resolved_month = _validate_bill_form(
         name, amount, due_day, frequency, category, bill_type, url, due_month
     )
+    loan_left_value = _parse_loan(is_loan, loan_left)
     with db() as conn:
         bill = conn.execute("SELECT id FROM bills WHERE id = ?", (bill_id,)).fetchone()
         if not bill:
             raise HTTPException(status_code=404)
+        # The form shows the current balance. Only a changed figure (a
+        # correction from a statement, or a newly tracked loan) resets it, so
+        # saving other edits doesn't wipe out payments already counted.
+        if loan_left_value is None:
+            conn.execute(
+                "UPDATE bills SET loan_balance = NULL, loan_baseline = 0 WHERE id = ?", (bill_id,)
+            )
+        else:
+            current = loan_remaining(conn, bill_id)
+            if current is None or abs(current - loan_left_value) > 0.005:
+                conn.execute(
+                    "UPDATE bills SET loan_balance = ?, loan_baseline = ? WHERE id = ?",
+                    (loan_left_value, latest_payment_id(conn), bill_id),
+                )
         conn.execute(
             "UPDATE bills SET name=?, amount=?, due_day=?, frequency=?, category=?, bill_type=?, auto_pay=?, notes=?, url=?, due_month=? WHERE id=?",
             (
@@ -293,13 +406,21 @@ async def mark_paid(bill_id: int, amount_paid: float = Form(None)):
             "INSERT OR IGNORE INTO payment_history (bill_id, amount_paid) VALUES (?, ?)",
             (bill_id, amount_paid if amount_paid is not None else bill["amount"]),
         )
+        close_loan_if_repaid(conn, bill_id)
     return RedirectResponse("/", status_code=303)
 
 
 @router.post("/payments/{payment_id}/delete")
 async def delete_payment(payment_id: int):
     with db() as conn:
+        row = conn.execute(
+            "SELECT bill_id FROM payment_history WHERE id = ?", (payment_id,)
+        ).fetchone()
+        before = loan_remaining(conn, row["bill_id"]) if row else None
         conn.execute("DELETE FROM payment_history WHERE id = ?", (payment_id,))
+        # Undoing the payment that cleared a loan reopens it.
+        if before is not None and before <= 0 and (loan_remaining(conn, row["bill_id"]) or 0) > 0:
+            conn.execute("UPDATE bills SET active = 1 WHERE id = ?", (row["bill_id"],))
     return RedirectResponse("/", status_code=303)
 
 
@@ -307,18 +428,21 @@ async def delete_payment(payment_id: int):
 async def export_csv():
     with db() as conn:
         rows = conn.execute(
-            "SELECT name, amount, due_day, frequency, category, bill_type, "
+            "SELECT id, name, amount, due_day, frequency, category, bill_type, "
             "auto_pay, active, url, due_month, notes "
             "FROM bills ORDER BY id ASC"
         ).fetchall()
+        rows = [dict(r) for r in rows]
+        balances = loan_balances(conn)
 
     output = io.StringIO()
     writer = csv.writer(output)
     writer.writerow([
         "name", "amount", "due_day", "frequency", "category", "bill_type",
-        "auto_pay", "active", "url", "due_month", "notes",
+        "auto_pay", "active", "url", "due_month", "notes", "loan_left",
     ])
     for row in rows:
+        loan = balances.get(row["id"])
         writer.writerow([
             row["name"],
             f"{row['amount']:.2f}",
@@ -331,6 +455,7 @@ async def export_csv():
             row["url"] or "",
             row["due_month"] if row["due_month"] is not None else "",
             row["notes"] or "",
+            f"{loan['remaining']:.2f}" if loan else "",
         ])
 
     output.seek(0)
@@ -362,4 +487,10 @@ async def api_summary():
         total = monthly_total(conn)
         ann = annual_total(conn)
         count = conn.execute("SELECT COUNT(*) FROM bills WHERE active = 1").fetchone()[0]
-    return {"monthly_total": total, "annual_total": ann, "active_bills": count}
+        loans_left = sum(info["remaining"] for info in loan_balances(conn).values())
+    return {
+        "monthly_total": total,
+        "annual_total": ann,
+        "active_bills": count,
+        "loans_remaining": round(loans_left, 2),
+    }
