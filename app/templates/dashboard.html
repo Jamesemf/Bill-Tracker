@@ -406,10 +406,12 @@
   {%- if not compact %}<span class="status neutral"><i aria-hidden="true">&bull;</i>Disabled</span>{% endif -%}
 {%- elif b.id in overdue_ids -%}
   {%- if not compact %}<span class="status bad"><i aria-hidden="true">&#10005;</i>Overdue</span>{% endif -%}
+{#- Direct debits stay "Scheduled" even once this period's payment is logged:
+    they look after themselves, so the last payment is in the tooltip. -#}
+{%- elif b.auto_pay -%}
+  <span class="status neutral" title="Paid automatically on the due date{% if last_paid.get(b.id) %} · last payment {{ last_paid[b.id] | due_date }}{% endif %}"><i aria-hidden="true">&#8635;</i>Scheduled</span>
 {%- elif b.id in paid_ids -%}
   <span class="status good"><i aria-hidden="true">&#10003;</i>Paid</span>
-{%- elif b.auto_pay -%}
-  <span class="status neutral" title="Logged automatically on the due date"><i aria-hidden="true">&#8635;</i>Scheduled</span>
 {%- elif b.id in due_soon_ids -%}
   {%- if not compact %}<span class="status warn"><i aria-hidden="true">!</i>Due soon</span>{% endif -%}
 {%- endif -%}

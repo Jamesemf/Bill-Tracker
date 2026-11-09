@@ -200,3 +200,25 @@ def test_coming_up_lists_overdue_first_then_soonest(make_bill):
     html = templates.get_template("dashboard.html").render(**ctx)
     assert "3 days late" in html
     assert "was due 5 Jul" in html
+
+
+def test_auto_pay_bill_stays_scheduled_after_its_payment(make_bill):
+    from datetime import date
+
+    from app.router import _dashboard_context, templates
+
+    today = date(2026, 7, 8)
+    direct_debit = make_bill(name="Broadband", due_day=1, auto_pay=1)
+    by_hand = make_bill(name="Gym", due_day=2)
+    with models.db() as conn:
+        for bid in (direct_debit, by_hand):
+            conn.execute(
+                "INSERT INTO payment_history (bill_id, paid_date, amount_paid) VALUES (?, '2026-07-01', 10)",
+                (bid,),
+            )
+        ctx = _dashboard_context(today, conn)
+
+    html = templates.get_template("dashboard.html").render(**ctx)
+    assert html.count("</i>Scheduled</span>") == 1      # the direct debit
+    assert html.count("</i>Paid</span>") == 1           # the bill paid by hand
+    assert "last payment 1 Jul" in html
